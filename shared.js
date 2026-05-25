@@ -435,9 +435,11 @@ window.addEventListener("popstate", (e) => {
 const SIDEBAR_HTML = `
 <div class="sidebar">
   <div class="sidebar-logo">
-    <div class="logo-icon">R</div>
-    <div>
-      <span>RASED</span>
+<div class="logo-icon" style="background:none;padding:0;overflow:hidden">
+  <img src="rasedlogo.png" style="width:36px;height:36px;object-fit:contain">
+</div>
+<div>
+  <span>RASED</span>
       <small>Facility Management</small>
     </div>
   </div>
