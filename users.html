@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Users — RASED</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Users Management</div>
+    <div class="topbar-right">
+      <div class="topbar-user" id="topbar-user"></div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Users</div>
+        <div class="page-subtitle">Manage system users and roles</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add User
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">All Users</div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Search users…" oninput="filterTable()">
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Phone</th>
+              <th>Role</th>
+              <th>Client ID</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable">
+            <tr><td colspan="5"><div class="loader-wrap"><div class="spinner"></div> Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New User</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>FULL NAME</label>
+        <input type="text" id="name" placeholder="User full name">
+      </div>
+      <div class="form-group">
+        <label>PHONE</label>
+        <input type="tel" id="phone" placeholder="05xxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>PASSWORD</label>
+        <input type="password" id="password" placeholder="Min. 6 characters">
+      </div>
+      <div class="form-group">
+        <label>ROLE</label>
+        <select id="role">
+          <option value="Admin">Admin</option>
+          <option value="Supervisor">Supervisor</option>
+          <option value="User">User</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>CLIENT ID</label>
+        <input type="text" id="client_id" placeholder="Linked client ID">
+      </div>
+      <div class="form-group">
+        <label>PROFILE IMAGE</label>
+        <input type="file" id="image" accept="image/*">
+      </div>
+    </div>
+    <hr class="divider">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="addUser()">Add User</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById("sidebar-mount").innerHTML = SIDEBAR_HTML;
+requireAuth();
+renderTopbarUser();
+setActiveLink();
+
+let allUsers = [];
+const roleColor = { Admin: "purple", Supervisor: "blue", User: "gray" };
+
+async function loadUsers() {
+  try {
+    const data = await api({ action: "getUsers" }, {
+      onUpdate: (fresh) => {
+        allUsers = fresh.data || [];
+        renderTable(allUsers);
+      }
+    });
+    allUsers = data.data || [];
+    renderTable(allUsers);
+  } catch {
+    document.getElementById("usersTable").innerHTML =
+      `<tr><td colspan="5"><div class="alert alert-error">Failed to load users</div></td></tr>`;
+  }
+}
+
+function renderTable(rows) {
+  const tb = document.getElementById("usersTable");
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="5"><div class="empty-state"><p>No users found</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(u => {
+    const initials = (u.name || "?").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
+    const roleCls = roleColor[u.role] || "gray";
+    return `
+    <tr>
+      <td>
+        <div class="cell-user">
+          <div class="avatar">${u.image ? `<img src="${u.image}">` : initials}</div>
+          <span>${u.name || "—"}</span>
+        </div>
+      </td>
+      <td class="td-muted">${u.phone || "—"}</td>
+      <td><span class="badge badge-${roleCls}">${u.role || "—"}</span></td>
+      <td class="td-muted">${u.client_id || "—"}</td>
+      <td>${statusBadge(u.status)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function filterTable() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  renderTable(allUsers.filter(u =>
+    (u.name||"").toLowerCase().includes(q) ||
+    (u.phone||"").includes(q) ||
+    (u.role||"").toLowerCase().includes(q)
+  ));
+}
+
+function openModal()  { document.getElementById("modal").classList.add("open"); }
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+
+async function addUser() {
+  const name  = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const pass  = document.getElementById("password").value;
+
+  if (!name || !phone || !pass) { toast("Please fill in name, phone and password.", "error"); return; }
+  if (pass.length < 6)          { toast("Password must be at least 6 characters.", "error"); return; }
+
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+
+  try {
+    const file = document.getElementById("image").files[0];
+    const imageUrl = file ? await uploadImage(file) : "";
+
+    await api({
+      action: "addUser",
+      name, phone,
+      password:  pass,
+      role:      document.getElementById("role").value,
+      client_id: document.getElementById("client_id").value,
+      image:     imageUrl
+    }, { noCache: true });
+
+    invalidateCache("getUsers");
+    toast("User added successfully!", "success");
+    closeModal();
+    document.querySelectorAll(".form-grid input, .form-grid select").forEach(i => {
+      if (i.type === "select-one") i.selectedIndex = 0;
+      else i.value = "";
+    });
+    loadUsers();
+  } catch {
+    toast("Error adding user.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Add User";
+  }
+}
+
+loadUsers();
+</script>
+</body>
+</html>
