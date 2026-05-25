@@ -25,6 +25,192 @@
 .client-preview-info { flex: 1; }
 .client-preview-name { font-size: 15px; font-weight: 600; }
 .client-preview-sub  { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+/* ── PRINT MODAL ─────────────────────────────── */
+.print-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.print-overlay.open { opacity: 1; pointer-events: all; }
+
+.print-modal {
+  background: white;
+  width: min(720px, 95vw);
+  max-height: 90vh;
+  border-radius: 14px;
+  overflow-y: auto;
+  transform: translateY(12px);
+  transition: transform 0.2s;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.3);
+}
+.print-overlay.open .print-modal { transform: translateY(0); }
+
+.print-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 14px 14px 0 0;
+}
+
+/* The actual printable document */
+.contract-doc {
+  padding: 48px 52px;
+  font-family: 'IBM Plex Sans Arabic', Arial, sans-serif;
+  color: #0f172a;
+  direction: rtl;
+}
+
+.contract-doc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 36px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #0f172a;
+}
+
+.contract-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.contract-logo-icon {
+  width: 48px; height: 48px;
+  background: #0f172a;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: white;
+}
+.contract-brand-name { font-size: 22px; font-weight: 700; letter-spacing: 2px; }
+.contract-brand-sub  { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+.contract-doc-title { text-align: left; }
+.contract-doc-title h1 { font-size: 20px; font-weight: 700; margin: 0; }
+.contract-doc-title p  { font-size: 12px; color: #64748b; margin: 4px 0 0; }
+
+.contract-no-badge {
+  display: inline-block;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.contract-section {
+  margin-bottom: 28px;
+}
+.contract-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.contract-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.contract-field label {
+  font-size: 11px;
+  color: #94a3b8;
+  display: block;
+  margin-bottom: 3px;
+  font-weight: 500;
+}
+.contract-field span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.contract-client-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.contract-client-logo {
+  width: 52px; height: 52px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: white;
+  border: 1px solid #e2e8f0;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.contract-client-logo-placeholder {
+  width: 52px; height: 52px;
+  border-radius: 8px;
+  background: #e2e8f0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 700; color: #94a3b8;
+  flex-shrink: 0;
+}
+.contract-client-name { font-size: 16px; font-weight: 700; }
+.contract-client-sub  { font-size: 12px; color: #64748b; margin-top: 3px; }
+
+.contract-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 20px;
+}
+.contract-status-label { font-size: 13px; font-weight: 500; }
+.contract-status-active  { color: #15803d; background: #dcfce7; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.contract-status-expired { color: #b91c1c; background: #fee2e2; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.contract-status-pending { color: #a16207; background: #fef9c3; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+
+.contract-signatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+.signature-block { text-align: center; }
+.signature-line  {
+  width: 100%;
+  border-bottom: 1.5px solid #0f172a;
+  margin-bottom: 8px;
+  height: 40px;
+}
+.signature-label { font-size: 12px; color: #64748b; }
+
+@media print {
+  .print-actions { display: none !important; }
+  .print-overlay { position: static; background: none; opacity: 1; pointer-events: all; }
+  .print-modal   { box-shadow: none; border-radius: 0; max-height: none; }
+  .contract-doc  { padding: 24px 32px; }
+  body > *:not(.print-overlay) { display: none !important; }
+}
+
 </style>
 </head>
 <body>
@@ -63,7 +249,7 @@
           <thead>
             <tr>
               <th>Contract No</th>
-              <th>Client ID</th>
+              <th>Client</th>
               <th>Service</th>
               <th>Start Date</th>
               <th>End Date</th>
@@ -192,9 +378,9 @@ function renderTable(rows) {
   tb.innerHTML = rows.map(c => {
     const sc = serviceColor[c.service_type] || "gray";
     return `
-    <tr>
+    <tr style="cursor:pointer" onclick="openContract(${c.id})">
       <td><span style="font-family:monospace;font-size:12px;background:var(--bg);padding:3px 8px;border-radius:4px">${c.contract_no || "—"}</span></td>
-      <td class="td-muted">${c.client_id || "—"}</td>
+      <td class="td-muted">${clientsData.find(x=>x.id==c.client_id)?.name_ar || c.client_id || "—"}</td>
       <td><span class="badge badge-${sc}">${c.service_type || "—"}</span></td>
       <td class="td-muted">${c.start_date || "—"}</td>
       <td class="td-muted">${c.end_date || "—"}</td>
@@ -241,6 +427,131 @@ async function addContract() {
 }
 
 init();
+
+function closePrintModal() {
+  document.getElementById("printOverlay").classList.remove("open");
+}
+
+function openContract(id) {
+  const c = allContracts.find(x => x.id == id);
+  if (!c) return;
+  const client = clientsData.find(x => x.id == c.client_id) || {};
+
+  const statusClass = {
+    active:   "contract-status-active",
+    expired:  "contract-status-expired",
+    pending:  "contract-status-pending"
+  }[(c.status||"").toLowerCase()] || "contract-status-pending";
+
+  const logoHtml = client.logo
+    ? `<img class="contract-client-logo" src="${client.logo}">`
+    : `<div class="contract-client-logo-placeholder">${(client.name_ar||"?")[0]}</div>`;
+
+  document.getElementById("contractDoc").innerHTML = `
+    <div class="contract-doc-header">
+      <div class="contract-logo-wrap">
+        <div class="contract-logo-icon" style="background:none;padding:0;overflow:hidden">
+  <img src="rasedlogo.png" style="width:48px;height:48px;object-fit:contain">
+</div>
+        <div>
+          <div class="contract-brand-name">RASED</div>
+          <div class="contract-brand-sub">Facility Management System</div>
+        </div>
+      </div>
+      <div class="contract-doc-title">
+        <h1>عقد خدمات</h1>
+        <p>Service Contract</p>
+        <div class="contract-no-badge">${c.contract_no || "—"}</div>
+      </div>
+    </div>
+
+    <div class="contract-section">
+      <div class="contract-section-title">بيانات العميل — Client Information</div>
+      <div class="contract-client-box">
+        ${logoHtml}
+        <div>
+          <div class="contract-client-name">${client.name_ar || "—"}</div>
+          <div class="contract-client-sub">${client.name_en || ""} ${client.contact_phone ? "· " + client.contact_phone : ""} ${client.address ? "· " + client.address : ""}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="contract-section">
+      <div class="contract-section-title">تفاصيل العقد — Contract Details</div>
+      <div class="contract-grid">
+        <div class="contract-field">
+          <label>نوع الخدمة / Service Type</label>
+          <span>${c.service_type || "—"}</span>
+        </div>
+        <div class="contract-field">
+          <label>رقم العقد / Contract No</label>
+          <span style="font-family:monospace">${c.contract_no || "—"}</span>
+        </div>
+        <div class="contract-field">
+          <label>تاريخ البدء / Start Date</label>
+          <span>${c.start_date || "—"}</span>
+        </div>
+        <div class="contract-field">
+          <label>تاريخ الانتهاء / End Date</label>
+          <span>${c.end_date || "—"}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="contract-section">
+      <div class="contract-section-title">الحالة — Status</div>
+      <div class="contract-status-row">
+        <span class="contract-status-label">حالة العقد / Contract Status</span>
+        <span class="${statusClass}">${c.status || "—"}</span>
+      </div>
+    </div>
+
+    <div class="contract-section">
+      <div class="contract-section-title">بنود العقد — Terms</div>
+      <div style="font-size:13px;color:#475569;line-height:2;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px">
+        <p>١. يلتزم مزود الخدمة بتقديم خدمات ${c.service_type || "—"} وفق المواصفات المتفق عليها.</p>
+        <p>٢. مدة العقد من ${c.start_date || "—"} إلى ${c.end_date || "—"}.</p>
+        <p>٣. يحق لأي من الطرفين إنهاء العقد بإشعار كتابي مسبق مدته ثلاثون (30) يوماً.</p>
+        <p>٤. يخضع هذا العقد لأحكام نظام العمل في المملكة العربية السعودية.</p>
+      </div>
+    </div>
+
+    <div class="contract-signatures">
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div class="signature-label">توقيع العميل / Client Signature</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px">${client.name_ar || ""}</div>
+      </div>
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div class="signature-label">توقيع الشركة / Company Signature</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px">RASED</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("printOverlay").classList.add("open");
+}
 </script>
+
+<!-- PRINT / CONTRACT VIEW MODAL -->
+<div class="print-overlay" id="printOverlay">
+  <div class="print-modal" id="printModal">
+    <div class="print-actions">
+      <button class="btn btn-outline" onclick="closePrintModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Close
+      </button>
+      <button class="btn btn-primary" onclick="window.print()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Print
+      </button>
+    </div>
+    <div class="contract-doc" id="contractDoc">
+      <!-- filled dynamically -->
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
