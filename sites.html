@@ -146,7 +146,7 @@ function renderTable(rows) {
   }).join("");
 }
 
-function filterTable() {
+window.filterTable = function() {
   const q = document.getElementById("searchInput").value.toLowerCase();
   renderTable(allSites.filter(s =>
     (s.site_name||"").toLowerCase().includes(q) ||
@@ -155,10 +155,10 @@ function filterTable() {
   ));
 }
 
-function openModal()  { document.getElementById("modal").classList.add("open"); }
-function closeModal() { document.getElementById("modal").classList.remove("open"); }
+window.openModal = function()  { document.getElementById("modal").classList.add("open"); }
+window.closeModal = function() { document.getElementById("modal").classList.remove("open"); }
 
-async function addSite() {
+window.addSite = async function() {
   const site_name = document.getElementById("site_name").value.trim();
   const client_id = document.getElementById("client_id").value.trim();
   if (!site_name || !client_id) { toast("Site name and client ID are required.", "error"); return; }

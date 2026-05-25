@@ -156,7 +156,7 @@ function renderTable(rows) {
   }).join("");
 }
 
-function filterTable() {
+window.filterTable = function() {
   const q = document.getElementById("searchInput").value.toLowerCase();
   renderTable(allUsers.filter(u =>
     (u.name||"").toLowerCase().includes(q) ||
@@ -165,11 +165,11 @@ function filterTable() {
   ));
 }
 
-function openModal() {
+window.openModal = function() {
   document.getElementById("modal").classList.add("open");
   loadClientsIntoSelect();
 }
-function closeModal() { document.getElementById("modal").classList.remove("open"); }
+window.closeModal = function() { document.getElementById("modal").classList.remove("open"); }
 
 async function loadClientsIntoSelect() {
   const sel = document.getElementById("client_id");
@@ -190,7 +190,7 @@ async function loadClientsIntoSelect() {
   }
 }
 
-async function addUser() {
+window.addUser = async function() {
   const name  = document.getElementById("name").value.trim();
   const phone = document.getElementById("phone").value.trim();
   const pass  = document.getElementById("password").value;

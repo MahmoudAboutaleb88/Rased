@@ -341,7 +341,7 @@ async function init() {
   loadContracts();
 }
 
-function showClientPreview() {
+window.showClientPreview = function() {
   const id = document.getElementById("clientSelect").value;
   const c  = clientsData.find(x => x.id == id);
   const prev = document.getElementById("clientPreview");
@@ -389,7 +389,7 @@ function renderTable(rows) {
   }).join("");
 }
 
-function filterTable() {
+window.filterTable = function() {
   const q = document.getElementById("searchInput").value.toLowerCase();
   renderTable(allContracts.filter(c =>
     (c.contract_no||"").toLowerCase().includes(q) ||
@@ -398,10 +398,10 @@ function filterTable() {
   ));
 }
 
-function openModal()  { document.getElementById("modal").classList.add("open"); }
-function closeModal() { document.getElementById("modal").classList.remove("open"); }
+window.openModal = function()  { document.getElementById("modal").classList.add("open"); }
+window.closeModal = function() { document.getElementById("modal").classList.remove("open"); }
 
-async function addContract() {
+window.addContract = async function() {
   const client_id  = document.getElementById("clientSelect").value;
   const start_date = document.getElementById("start_date").value;
   const end_date   = document.getElementById("end_date").value;
@@ -428,11 +428,11 @@ async function addContract() {
 
 init();
 
-function closePrintModal() {
+window.closePrintModal = function() {
   document.getElementById("printOverlay").classList.remove("open");
 }
 
-function openContract(id) {
+window.openContract = function(id) {
   const c = allContracts.find(x => x.id == id);
   if (!c) return;
   const client = clientsData.find(x => x.id == c.client_id) || {};
@@ -450,9 +450,7 @@ function openContract(id) {
   document.getElementById("contractDoc").innerHTML = `
     <div class="contract-doc-header">
       <div class="contract-logo-wrap">
-        <div class="contract-logo-icon" style="background:none;padding:0;overflow:hidden">
-  <img src="rasedlogo.png" style="width:48px;height:48px;object-fit:contain">
-</div>
+        <div class="contract-logo-icon">R</div>
         <div>
           <div class="contract-brand-name">RASED</div>
           <div class="contract-brand-sub">Facility Management System</div>

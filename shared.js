@@ -47,7 +47,7 @@ function requireAuth() {
   return getUser();
 }
 
-function logout() {
+window.logout = function() {
   localStorage.removeItem("rased_user");
   cache.clear();
   window.location.href = "login.html";
@@ -127,7 +127,7 @@ async function uploadImage(file) {
 }
 
 /* ── TOAST ─── */
-function toast(msg, type = "default") {
+window.toast = function(msg, type = "default") {
   let container = document.getElementById("toast-container");
   if (!container) {
     container = document.createElement("div");
@@ -173,7 +173,7 @@ function renderTopbarUser() {
 }
 
 /* ── STATUS BADGE ─── */
-function statusBadge(status) {
+window.statusBadge = function(status) {
   const s = (status || "").toLowerCase();
   const map = { active: "green", inactive: "red", pending: "amber", expired: "red" };
   const cls = map[s] || "gray";
@@ -227,7 +227,7 @@ function _extractTitle(html) {
   return m ? m[1] : "RASED";
 }
 
-async function navigate(href, pushState = true) {
+window.navigate = async function(href, pushState = true) {
   if (_transitioning) return;
 
   // If it's login page, do real navigation
@@ -435,11 +435,9 @@ window.addEventListener("popstate", (e) => {
 const SIDEBAR_HTML = `
 <div class="sidebar">
   <div class="sidebar-logo">
-<div class="logo-icon" style="background:none;padding:0;overflow:hidden">
-  <img src="rasedlogo.png" style="width:36px;height:36px;object-fit:contain">
-</div>
-<div>
-  <span>RASED</span>
+    <div class="logo-icon">R</div>
+    <div>
+      <span>RASED</span>
       <small>Facility Management</small>
     </div>
   </div>
