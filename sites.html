@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sites — RASED</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Sites Management</div>
+    <div class="topbar-right">
+      <div class="topbar-user" id="topbar-user"></div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Sites</div>
+        <div class="page-subtitle">Manage client facility sites</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Site
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">All Sites</div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Search sites…" oninput="filterTable()">
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Site Name</th>
+              <th>Client ID</th>
+              <th>Segment</th>
+              <th>Sector</th>
+            </tr>
+          </thead>
+          <tbody id="sitesTable">
+            <tr><td colspan="4"><div class="loader-wrap"><div class="spinner"></div> Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New Site</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>SITE NAME</label>
+        <input type="text" id="site_name" placeholder="Site name">
+      </div>
+      <div class="form-group">
+        <label>CLIENT ID</label>
+        <input type="text" id="client_id" placeholder="Client ID">
+      </div>
+      <div class="form-group">
+        <label>SEGMENT</label>
+        <select id="segment">
+          <option value="Residential">Residential</option>
+          <option value="Commercial">Commercial</option>
+          <option value="Industrial">Industrial</option>
+          <option value="Government">Government</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>SECTOR</label>
+        <input type="text" id="sector" placeholder="Sector / Area">
+      </div>
+    </div>
+    <hr class="divider">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="addSite()">Add Site</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById("sidebar-mount").innerHTML = SIDEBAR_HTML;
+requireAuth();
+renderTopbarUser();
+setActiveLink();
+
+let allSites = [];
+const segmentColor = { Residential: "blue", Commercial: "amber", Industrial: "purple", Government: "green" };
+
+async function loadSites() {
+  try {
+    const data = await api({ action: "getSites" }, {
+      onUpdate: (fresh) => {
+        allSites = fresh.data || [];
+        renderTable(allSites);
+      }
+    });
+    allSites = data.data || [];
+    renderTable(allSites);
+  } catch {
+    document.getElementById("sitesTable").innerHTML =
+      `<tr><td colspan="4"><div class="alert alert-error">Failed to load sites</div></td></tr>`;
+  }
+}
+
+function renderTable(rows) {
+  const tb = document.getElementById("sitesTable");
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="4"><div class="empty-state"><p>No sites found</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(s => {
+    const sc = segmentColor[s.segment] || "gray";
+    return `
+    <tr>
+      <td>
+        <div class="cell-user">
+          <div style="width:32px;height:32px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <span>${s.site_name || "—"}</span>
+        </div>
+      </td>
+      <td class="td-muted">${s.client_id || "—"}</td>
+      <td><span class="badge badge-${sc}">${s.segment || "—"}</span></td>
+      <td class="td-muted">${s.sector || "—"}</td>
+    </tr>`;
+  }).join("");
+}
+
+function filterTable() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  renderTable(allSites.filter(s =>
+    (s.site_name||"").toLowerCase().includes(q) ||
+    (s.sector||"").toLowerCase().includes(q) ||
+    (s.client_id||"").toLowerCase().includes(q)
+  ));
+}
+
+function openModal()  { document.getElementById("modal").classList.add("open"); }
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+
+async function addSite() {
+  const site_name = document.getElementById("site_name").value.trim();
+  const client_id = document.getElementById("client_id").value.trim();
+  if (!site_name || !client_id) { toast("Site name and client ID are required.", "error"); return; }
+
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    await api({
+      action: "addSite",
+      site_name, client_id,
+      segment: document.getElementById("segment").value,
+      sector:  document.getElementById("sector").value
+    }, { noCache: true });
+    invalidateCache("getSites");
+    toast("Site added!", "success");
+    closeModal();
+    document.querySelectorAll(".form-grid input").forEach(i => i.value = "");
+    loadSites();
+  } catch { toast("Error adding site.", "error"); }
+  finally { btn.disabled = false; btn.textContent = "Add Site"; }
+}
+
+loadSites();
+</script>
+</body>
+</html>

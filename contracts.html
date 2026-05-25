@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contracts — RASED</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.client-preview {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  display: none;
+  gap: 14px;
+  align-items: center;
+  margin-top: 8px;
+}
+.client-preview.visible { display: flex; }
+.client-preview img {
+  width: 56px; height: 56px; object-fit: contain;
+  border-radius: 8px; background: white;
+  border: 1px solid var(--border); padding: 4px;
+}
+.client-preview-info { flex: 1; }
+.client-preview-name { font-size: 15px; font-weight: 600; }
+.client-preview-sub  { font-size: 12px; color: var(--text2); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Contracts Management</div>
+    <div class="topbar-right">
+      <div class="topbar-user" id="topbar-user"></div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Contracts</div>
+        <div class="page-subtitle">Manage service contracts</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Contract
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">All Contracts</div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Search contracts…" oninput="filterTable()">
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Contract No</th>
+              <th>Client ID</th>
+              <th>Service</th>
+              <th>Start Date</th>
+              <th>End Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="contractsTable">
+            <tr><td colspan="6"><div class="loader-wrap"><div class="spinner"></div> Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">New Contract</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>SELECT CLIENT</label>
+      <select id="clientSelect" onchange="showClientPreview()">
+        <option value="">— Select a client —</option>
+      </select>
+    </div>
+
+    <div class="client-preview" id="clientPreview">
+      <img id="previewLogo" src="">
+      <div class="client-preview-info">
+        <div class="client-preview-name" id="previewName"></div>
+        <div class="client-preview-sub" id="previewSub"></div>
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-top:16px">
+      <div class="form-group full">
+        <label>SERVICE TYPE</label>
+        <select id="service_type">
+          <option value="Security">Security</option>
+          <option value="Safety">Safety</option>
+          <option value="Housekeeping">Housekeeping</option>
+          <option value="Landscaping">Landscaping</option>
+          <option value="Pest Control">Pest Control</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>START DATE</label>
+        <input type="date" id="start_date">
+      </div>
+      <div class="form-group">
+        <label>END DATE</label>
+        <input type="date" id="end_date">
+      </div>
+    </div>
+    <hr class="divider">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="addContract()">Add Contract</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById("sidebar-mount").innerHTML = SIDEBAR_HTML;
+requireAuth();
+renderTopbarUser();
+setActiveLink();
+
+let clientsData = [];
+let allContracts = [];
+const serviceColor = { Security: "blue", Safety: "green", Housekeeping: "amber", Landscaping: "green", "Pest Control": "purple" };
+
+async function init() {
+  const data = await api({ action: "getClients" });
+  clientsData = data.data || [];
+  const sel = document.getElementById("clientSelect");
+  if (sel) {
+    clientsData.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = `${c.name_ar} — ${c.name_en}`;
+      sel.appendChild(opt);
+    });
+  }
+  loadContracts();
+}
+
+function showClientPreview() {
+  const id = document.getElementById("clientSelect").value;
+  const c  = clientsData.find(x => x.id == id);
+  const prev = document.getElementById("clientPreview");
+  if (!c) { prev.classList.remove("visible"); return; }
+  prev.classList.add("visible");
+  document.getElementById("previewLogo").src  = c.logo || "";
+  document.getElementById("previewName").textContent = c.name_ar;
+  document.getElementById("previewSub").textContent  = `${c.name_en} · ${c.contact_phone || ""} · ${c.address || ""}`;
+}
+
+async function loadContracts() {
+  try {
+    const data = await api({ action: "getContracts" }, {
+      onUpdate: (fresh) => {
+        allContracts = fresh.data || [];
+        renderTable(allContracts);
+      }
+    });
+    allContracts = data.data || [];
+    renderTable(allContracts);
+  } catch {
+    document.getElementById("contractsTable").innerHTML =
+      `<tr><td colspan="6"><div class="alert alert-error">Failed to load contracts</div></td></tr>`;
+  }
+}
+
+function renderTable(rows) {
+  const tb = document.getElementById("contractsTable");
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>No contracts found</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(c => {
+    const sc = serviceColor[c.service_type] || "gray";
+    return `
+    <tr>
+      <td><span style="font-family:monospace;font-size:12px;background:var(--bg);padding:3px 8px;border-radius:4px">${c.contract_no || "—"}</span></td>
+      <td class="td-muted">${c.client_id || "—"}</td>
+      <td><span class="badge badge-${sc}">${c.service_type || "—"}</span></td>
+      <td class="td-muted">${c.start_date || "—"}</td>
+      <td class="td-muted">${c.end_date || "—"}</td>
+      <td>${statusBadge(c.status)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function filterTable() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  renderTable(allContracts.filter(c =>
+    (c.contract_no||"").toLowerCase().includes(q) ||
+    (c.service_type||"").toLowerCase().includes(q) ||
+    (c.client_id||"").toLowerCase().includes(q)
+  ));
+}
+
+function openModal()  { document.getElementById("modal").classList.add("open"); }
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+
+async function addContract() {
+  const client_id  = document.getElementById("clientSelect").value;
+  const start_date = document.getElementById("start_date").value;
+  const end_date   = document.getElementById("end_date").value;
+  if (!client_id)  { toast("Please select a client.", "error"); return; }
+  if (!start_date) { toast("Please select a start date.", "error"); return; }
+  if (!end_date)   { toast("Please select an end date.", "error"); return; }
+  if (end_date < start_date) { toast("End date must be after start date.", "error"); return; }
+
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    await api({
+      action: "addContract",
+      client_id, start_date, end_date,
+      service_type: document.getElementById("service_type").value
+    }, { noCache: true });
+    invalidateCache("getContracts");
+    toast("Contract added!", "success");
+    closeModal();
+    loadContracts();
+  } catch { toast("Error adding contract.", "error"); }
+  finally { btn.disabled = false; btn.textContent = "Add Contract"; }
+}
+
+init();
+</script>
+</body>
+</html>

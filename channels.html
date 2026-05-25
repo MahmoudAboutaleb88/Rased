@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Channels — RASED</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Channels Management</div>
+    <div class="topbar-right">
+      <div class="topbar-user" id="topbar-user"></div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Channels</div>
+        <div class="page-subtitle">Communication channels and frequencies</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Channel
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">All Channels</div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Search channels…" oninput="filterTable()">
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Channel Name</th>
+              <th>Frequency</th>
+              <th>Client ID</th>
+              <th>Site ID</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="channelsTable">
+            <tr><td colspan="5"><div class="loader-wrap"><div class="spinner"></div> Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New Channel</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>CHANNEL NAME</label>
+        <input type="text" id="channel_name" placeholder="Channel name">
+      </div>
+      <div class="form-group">
+        <label>FREQUENCY</label>
+        <input type="text" id="frequency" placeholder="e.g. 450.250 MHz">
+      </div>
+      <div class="form-group">
+        <label>CLIENT ID</label>
+        <input type="text" id="client_id" placeholder="Client ID">
+      </div>
+      <div class="form-group">
+        <label>SITE ID</label>
+        <input type="text" id="site_id" placeholder="Site ID">
+      </div>
+    </div>
+    <hr class="divider">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="addChannel()">Add Channel</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById("sidebar-mount").innerHTML = SIDEBAR_HTML;
+requireAuth();
+renderTopbarUser();
+setActiveLink();
+
+let allChannels = [];
+
+async function loadChannels() {
+  try {
+    const data = await api({ action: "getChannels" }, {
+      onUpdate: (fresh) => {
+        allChannels = fresh.data || [];
+        renderTable(allChannels);
+      }
+    });
+    allChannels = data.data || [];
+    renderTable(allChannels);
+  } catch {
+    document.getElementById("channelsTable").innerHTML =
+      `<tr><td colspan="5"><div class="alert alert-error">Failed to load channels</div></td></tr>`;
+  }
+}
+
+function renderTable(rows) {
+  const tb = document.getElementById("channelsTable");
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="5"><div class="empty-state"><p>No channels found</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(c => `
+    <tr>
+      <td>
+        <div class="cell-user">
+          <div style="width:32px;height:32px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.11 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.1a16 16 0 0 0 6 6l.38-.38a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16l.08.7-.08.22Z"/></svg>
+          </div>
+          <span>${c.channel_name || "—"}</span>
+        </div>
+      </td>
+      <td><span style="font-family:monospace;font-size:13px;color:var(--text2)">${c.frequency || "—"}</span></td>
+      <td class="td-muted">${c.client_id || "—"}</td>
+      <td class="td-muted">${c.site_id || "—"}</td>
+      <td>${statusBadge(c.status)}</td>
+    </tr>`).join("");
+}
+
+function filterTable() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  renderTable(allChannels.filter(c =>
+    (c.channel_name||"").toLowerCase().includes(q) ||
+    (c.frequency||"").toLowerCase().includes(q)
+  ));
+}
+
+function openModal()  { document.getElementById("modal").classList.add("open"); }
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+
+async function addChannel() {
+  const channel_name = document.getElementById("channel_name").value.trim();
+  if (!channel_name) { toast("Channel name is required.", "error"); return; }
+
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    await api({
+      action: "addChannel",
+      channel_name,
+      frequency:  document.getElementById("frequency").value,
+      client_id:  document.getElementById("client_id").value,
+      site_id:    document.getElementById("site_id").value
+    }, { noCache: true });
+    invalidateCache("getChannels");
+    toast("Channel added!", "success");
+    closeModal();
+    document.querySelectorAll(".form-grid input").forEach(i => i.value = "");
+    loadChannels();
+  } catch { toast("Error adding channel.", "error"); }
+  finally { btn.disabled = false; btn.textContent = "Add Channel"; }
+}
+
+loadChannels();
+</script>
+</body>
+</html>

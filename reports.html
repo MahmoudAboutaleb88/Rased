@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports — RASED</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Reports</div>
+    <div class="topbar-right">
+      <div class="topbar-user" id="topbar-user"></div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Reports</div>
+        <div class="page-subtitle">System summary and statistics</div>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+        <div class="stat-info"><div class="stat-value" id="rClients">—</div><div class="stat-label">Clients</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <div class="stat-info"><div class="stat-value" id="rUsers">—</div><div class="stat-label">Users</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+        <div class="stat-info"><div class="stat-value" id="rSites">—</div><div class="stat-label">Sites</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <div class="stat-info"><div class="stat-value" id="rContracts">—</div><div class="stat-label">Contracts</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 12"/></svg></div>
+        <div class="stat-info"><div class="stat-value" id="rChannels">—</div><div class="stat-label">Channels</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Contracts by Service Type</div></div>
+      <div id="serviceBreakdown" style="padding:8px 0"></div>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById("sidebar-mount").innerHTML = SIDEBAR_HTML;
+requireAuth();
+renderTopbarUser();
+setActiveLink();
+
+function renderReports(clients, users, sites, contracts, channels) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set("rClients",  (clients.data||[]).length);
+  set("rUsers",    (users.data||[]).length);
+  set("rSites",    (sites.data||[]).length);
+  set("rContracts",(contracts.data||[]).length);
+  set("rChannels", (channels.data||[]).length);
+
+  const serviceMap = {};
+  (contracts.data||[]).forEach(c => {
+    serviceMap[c.service_type] = (serviceMap[c.service_type] || 0) + 1;
+  });
+  const total = (contracts.data||[]).length || 1;
+  const colors = { Security: "#3b82f6", Safety: "#10b981", Housekeeping: "#f59e0b", Landscaping: "#22c55e", "Pest Control": "#a855f7" };
+  const rows = Object.entries(serviceMap).sort((a,b) => b[1]-a[1]);
+
+  const sb = document.getElementById("serviceBreakdown");
+  if (!sb) return;
+  sb.innerHTML = rows.length
+    ? rows.map(([svc, count]) => {
+        const pct = Math.round(count / total * 100);
+        const clr = colors[svc] || "#94a3b8";
+        return `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:110px;font-size:13px;font-weight:500;flex-shrink:0">${svc}</div>
+          <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${clr};border-radius:4px;transition:width 0.6s ease"></div>
+          </div>
+          <div style="font-size:12px;color:var(--text2);min-width:64px;text-align:right">${count} (${pct}%)</div>
+        </div>`;
+      }).join("")
+    : `<div class="empty-state"><p>No contract data</p></div>`;
+}
+
+async function loadReports() {
+  const onUpdate = () => loadReports();
+  const [clients, users, sites, contracts, channels] = await Promise.all([
+    api({ action: "getClients" },   { onUpdate }),
+    api({ action: "getUsers" },     { onUpdate }),
+    api({ action: "getSites" },     { onUpdate }),
+    api({ action: "getContracts" }, { onUpdate }),
+    api({ action: "getChannels" },  { onUpdate })
+  ]);
+  renderReports(clients, users, sites, contracts, channels);
+}
+
+loadReports();
+</script>
+</body>
+</html>

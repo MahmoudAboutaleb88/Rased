@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clients — RASED</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Clients Management</div>
+    <div class="topbar-right">
+      <div class="topbar-user" id="topbar-user"></div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Clients</div>
+        <div class="page-subtitle">Manage all facility clients</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Client
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">All Clients</div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Search clients…" oninput="filterTable()">
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Name (EN)</th>
+              <th>Phone</th>
+              <th>Domain</th>
+              <th>Contact</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="clientsTable">
+            <tr><td colspan="6"><div class="loader-wrap"><div class="spinner"></div> Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New Client</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>NAME (ARABIC)</label>
+        <input type="text" id="name_ar" placeholder="اسم العميل">
+      </div>
+      <div class="form-group">
+        <label>NAME (ENGLISH)</label>
+        <input type="text" id="name_en" placeholder="Client name">
+      </div>
+      <div class="form-group full">
+        <label>ADDRESS</label>
+        <input type="text" id="address" placeholder="Full address">
+      </div>
+      <div class="form-group">
+        <label>DOMAIN</label>
+        <input type="text" id="domain" placeholder="example.com">
+      </div>
+      <div class="form-group">
+        <label>CONTACT PERSON</label>
+        <input type="text" id="contact_person" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label>PHONE</label>
+        <input type="tel" id="contact_phone" placeholder="05xxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>LOGO</label>
+        <input type="file" id="logo" accept="image/*">
+      </div>
+    </div>
+    <hr class="divider">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="addClient()">Add Client</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+document.getElementById("sidebar-mount").innerHTML = SIDEBAR_HTML;
+requireAuth();
+renderTopbarUser();
+setActiveLink();
+
+let allClients = [];
+
+async function loadClients() {
+  try {
+    const data = await api({ action: "getClients" }, {
+      onUpdate: (fresh) => {
+        allClients = fresh.data || [];
+        renderTable(allClients);
+      }
+    });
+    allClients = data.data || [];
+    renderTable(allClients);
+  } catch (e) {
+    document.getElementById("clientsTable").innerHTML =
+      `<tr><td colspan="6"><div class="alert alert-error">Failed to load clients</div></td></tr>`;
+  }
+}
+
+function renderTable(rows) {
+  const tb = document.getElementById("clientsTable");
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>No clients found</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(c => `
+    <tr>
+      <td>
+        <div class="cell-user">
+          <div class="avatar" style="width:36px;height:36px;border-radius:8px;background:#f1f5f9">
+            ${c.logo ? `<img src="${c.logo}" style="width:36px;height:36px;border-radius:8px;object-fit:contain">` : `<span style="font-size:11px;color:#94a3b8">${(c.name_ar||"?")[0]}</span>`}
+          </div>
+          <span>${c.name_ar || "—"}</span>
+        </div>
+      </td>
+      <td class="td-muted">${c.name_en || "—"}</td>
+      <td>${c.contact_phone || "—"}</td>
+      <td class="td-muted">${c.domain || "—"}</td>
+      <td>${c.contact_person || "—"}</td>
+      <td>${statusBadge(c.status)}</td>
+    </tr>`).join("");
+}
+
+function filterTable() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  renderTable(allClients.filter(c =>
+    (c.name_ar||"").toLowerCase().includes(q) ||
+    (c.name_en||"").toLowerCase().includes(q) ||
+    (c.contact_phone||"").includes(q)
+  ));
+}
+
+function openModal()  { document.getElementById("modal").classList.add("open"); }
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+
+async function addClient() {
+  const name_ar = document.getElementById("name_ar").value.trim();
+  const name_en = document.getElementById("name_en").value.trim();
+  if (!name_ar || !name_en) { toast("Please fill in both name fields.", "error"); return; }
+
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+
+  try {
+    const file = document.getElementById("logo").files[0];
+    const logoUrl = file ? await uploadImage(file) : "";
+
+    await api({
+      action: "addClient",
+      name_ar, name_en,
+      address:        document.getElementById("address").value,
+      domain:         document.getElementById("domain").value,
+      contact_person: document.getElementById("contact_person").value,
+      contact_phone:  document.getElementById("contact_phone").value,
+      logo: logoUrl
+    }, { noCache: true });
+
+    invalidateCache("getClients");
+    toast("Client added successfully!", "success");
+    closeModal();
+    document.querySelectorAll(".form-grid input").forEach(i => i.value = "");
+    loadClients();
+  } catch (e) {
+    toast("Error adding client.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Add Client";
+  }
+}
+
+loadClients();
+</script>
+</body>
+</html>
