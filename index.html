@@ -11,21 +11,45 @@
 body{
   margin:0;
   font-family:Arial;
+  display:flex;
+  height:100vh;
   overflow:hidden;
 }
 
-iframe{
-  width:100%;
-  height:100vh;
-  border:none;
+/* SIDEBAR */
+.sidebar{
+  width:260px;
+  background:#0f172a;
+  color:white;
+  padding:20px;
+  box-sizing:border-box;
 }
 
-.nav{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:0;
+/* MAIN */
+.main{
+  flex:1;
+  background:#f1f5f9;
+  overflow:auto;
+  padding:20px;
+}
+
+/* LINKS */
+a{
+  display:block;
+  color:white;
+  text-decoration:none;
+  padding:10px;
+  border-radius:8px;
+  margin:5px 0;
+}
+
+a:hover{
+  background:#1e293b;
+}
+
+/* ACTIVE PAGE */
+.active{
+  background:#2563eb !important;
 }
 
 </style>
@@ -34,13 +58,31 @@ iframe{
 
 <body>
 
-<!-- MAIN APP CONTAINER -->
-<iframe id="appFrame" src="login.html"></iframe>
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<h2>RASED</h2>
+
+<a href="#" onclick="navigate('dashboard')">Dashboard</a>
+<a href="#" onclick="navigate('clients')">Clients</a>
+<a href="#" onclick="navigate('users')">Users</a>
+<a href="#" onclick="navigate('sites')">Sites</a>
+<a href="#" onclick="navigate('contracts')">Contracts</a>
+<a href="#" onclick="navigate('channels')">Channels</a>
+<a href="#" onclick="navigate('chat')">Chat</a>
+
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main" id="app">
+
+<h2>Loading...</h2>
+
+</div>
 
 <script>
 
 const routes = {
-  login: "login.html",
   dashboard: "dashboard.html",
   clients: "clients.html",
   users: "users.html",
@@ -50,22 +92,51 @@ const routes = {
   chat: "chat.html"
 };
 
-/* GLOBAL NAV FUNCTION */
-function navigate(page){
-  document.getElementById("appFrame").src = routes[page];
+let cache = {};
+
+/* LOAD PAGE INSIDE DIV */
+async function navigate(page){
+
   localStorage.setItem("currentPage", page);
+
+  const url = routes[page];
+
+  if(!url) return;
+
+  document.getElementById("app").innerHTML = "Loading...";
+
+  try{
+
+    let html;
+
+    if(cache[url]){
+      html = cache[url];
+    } else {
+
+      const res = await fetch(url);
+      html = await res.text();
+      cache[url] = html;
+
+    }
+
+    // extract only body content
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const content = doc.body.innerHTML;
+
+    document.getElementById("app").innerHTML = content;
+
+  } catch(err){
+    document.getElementById("app").innerHTML = "Error loading page";
+  }
+
 }
 
-/* AUTO RESTORE LAST PAGE */
+/* AUTO LOAD LAST PAGE */
 window.onload = function(){
 
-  const saved = localStorage.getItem("currentPage");
+  const saved = localStorage.getItem("currentPage") || "dashboard";
 
-  if(saved && routes[saved]){
-    document.getElementById("appFrame").src = routes[saved];
-  } else {
-    document.getElementById("appFrame").src = "login.html";
-  }
+  navigate(saved);
 
 };
 
