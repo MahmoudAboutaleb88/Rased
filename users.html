@@ -86,8 +86,10 @@
         </select>
       </div>
       <div class="form-group">
-        <label>CLIENT ID</label>
-        <input type="text" id="client_id" placeholder="Linked client ID">
+        <label>CLIENT</label>
+        <select id="client_id">
+          <option value="">— Select a client —</option>
+        </select>
       </div>
       <div class="form-group">
         <label>PROFILE IMAGE</label>
@@ -163,8 +165,30 @@ function filterTable() {
   ));
 }
 
-function openModal()  { document.getElementById("modal").classList.add("open"); }
+function openModal() {
+  document.getElementById("modal").classList.add("open");
+  loadClientsIntoSelect();
+}
 function closeModal() { document.getElementById("modal").classList.remove("open"); }
+
+async function loadClientsIntoSelect() {
+  const sel = document.getElementById("client_id");
+  if (!sel) return;
+  // If already populated, skip
+  if (sel.options.length > 1) return;
+  try {
+    const data = await api({ action: "getClients" });
+    const clients = data.data || [];
+    clients.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = `${c.name_ar || ""}${c.name_en ? " — " + c.name_en : ""}`;
+      sel.appendChild(opt);
+    });
+  } catch {
+    toast("Failed to load clients.", "error");
+  }
+}
 
 async function addUser() {
   const name  = document.getElementById("name").value.trim();
