@@ -170,7 +170,7 @@ const prefs = JSON.parse(localStorage.getItem("rased_prefs") || "{}");
 if (prefs.sound !== undefined) document.getElementById("pref-sound").checked = prefs.sound;
 if (prefs.poll  !== undefined) document.getElementById("pref-poll").checked  = prefs.poll;
 
-window.savePref = function(key, val) {
+function savePref(key, val) {
   const p = JSON.parse(localStorage.getItem("rased_prefs") || "{}");
   p[key] = val;
   localStorage.setItem("rased_prefs", JSON.stringify(p));

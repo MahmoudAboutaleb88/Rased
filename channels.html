@@ -139,7 +139,7 @@ function renderTable(rows) {
     </tr>`).join("");
 }
 
-window.filterTable = function() {
+function filterTable() {
   const q = document.getElementById("searchInput").value.toLowerCase();
   renderTable(allChannels.filter(c =>
     (c.channel_name||"").toLowerCase().includes(q) ||
@@ -147,10 +147,10 @@ window.filterTable = function() {
   ));
 }
 
-window.openModal = function()  { document.getElementById("modal").classList.add("open"); }
-window.closeModal = function() { document.getElementById("modal").classList.remove("open"); }
+function openModal()  { document.getElementById("modal").classList.add("open"); }
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
 
-window.addChannel = async function() {
+async function addChannel() {
   const channel_name = document.getElementById("channel_name").value.trim();
   if (!channel_name) { toast("Channel name is required.", "error"); return; }
 

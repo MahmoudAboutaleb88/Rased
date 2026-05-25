@@ -320,7 +320,7 @@ function renderUsersList(users) {
   });
 }
 
-window.filterUsers = function() {
+function filterUsers() {
   const q = document.getElementById("userSearch").value.toLowerCase();
   renderUsersList(allUsers.filter(u =>
     (u.name || "").toLowerCase().includes(q) ||
@@ -419,7 +419,7 @@ function buildBubble(m) {
 }
 
 // ── Send message ─────────────────────────────────────────
-window.sendMessage = async function() {
+async function sendMessage() {
   const input = document.getElementById("messageInput");
   const msg   = input.value.trim();
   if (!msg || !currentReceiver) return;
@@ -440,7 +440,7 @@ window.sendMessage = async function() {
 }
 
 // ── Helpers ──────────────────────────────────────────────
-window.autoResize = function(el) {
+function autoResize(el) {
   el.style.height = "auto";
   el.style.height = Math.min(el.scrollHeight, 120) + "px";
 }
