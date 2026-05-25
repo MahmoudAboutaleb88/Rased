@@ -25,28 +25,81 @@
   font-weight: 600;
   color: var(--text2);
   letter-spacing: 0.5px;
+  flex-shrink: 0;
 }
 
-.chat-sidebar-body { padding: 12px; flex: 1; }
-
-.receiver-input-wrap { padding: 12px; border-top: 1px solid var(--border); }
-.receiver-input-wrap label { font-size: 11px; font-weight: 600; color: var(--text3); display: block; margin-bottom: 6px; }
-.receiver-input-wrap input { font-size: 13px; }
-
-.start-chat-btn {
+.chat-sidebar-search {
+  position: relative;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.chat-sidebar-search svg {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--text3);
+}
+.chat-sidebar-search input {
   width: 100%;
-  margin-top: 8px;
-  padding: 9px;
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 8px;
+  padding: 7px 10px 7px 32px;
   font-size: 13px;
-  font-family: var(--font);
-  cursor: pointer;
-  transition: background 0.15s;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  outline: none;
 }
-.start-chat-btn:hover { background: var(--accent2); }
+.chat-sidebar-search input:focus {
+  border-color: var(--accent);
+  background: var(--white);
+}
+
+.chat-sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.users-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 0;
+  font-size: 13px;
+  color: var(--text3);
+}
+
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.user-item * { pointer-events: none; }
+.user-item:hover { background: var(--bg); }
+.user-item.active { background: #eff6ff; }
+
+.user-item-info { flex: 1; min-width: 0; }
+.user-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-item-role {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 1px;
+}
 
 .chat-main {
   flex: 1;
@@ -161,18 +214,17 @@
   </div>
 
   <div class="chat-layout">
-    <!-- Left: receiver input -->
+    <!-- Left: users list -->
     <div class="chat-sidebar">
       <div class="chat-sidebar-header">CONVERSATIONS</div>
-      <div class="chat-sidebar-body">
-        <div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">
-          Enter a User ID below to start chatting
-        </div>
+      <div class="chat-sidebar-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="userSearch" placeholder="Search users…" oninput="filterUsers()">
       </div>
-      <div class="receiver-input-wrap">
-        <label>RECEIVER USER ID</label>
-        <input type="text" id="receiverId" placeholder="e.g. 42">
-        <button class="start-chat-btn" onclick="startChat()">Open Chat</button>
+      <div class="chat-sidebar-body" id="usersList">
+        <div class="users-loading">
+          <div class="spinner"></div> Loading…
+        </div>
       </div>
     </div>
 
@@ -182,7 +234,7 @@
         <div class="avatar" id="chatAvatar">?</div>
         <div>
           <div class="chat-header-name" id="chatHeaderName">User</div>
-          <div class="chat-header-sub">Direct message</div>
+          <div class="chat-header-sub" id="chatHeaderSub">Direct message</div>
         </div>
       </div>
 
@@ -212,58 +264,161 @@ const currentUser = requireAuth();
 renderTopbarUser();
 setActiveLink();
 
-let currentReceiver = null;
-let pollInterval    = null;
+let currentReceiver     = null;  // { id, name, role, image }
+let pollInterval        = null;
+let allUsers            = [];
+let lastMessageIds      = new Set();
+let clientsMap          = {};  // id -> name_ar
 
-function autoResize(el) {
-  el.style.height = "auto";
-  el.style.height = Math.min(el.scrollHeight, 120) + "px";
+// ── Load users into sidebar ──────────────────────────────
+async function loadUsers() {
+  try {
+    const data = await api({ action: "getUsers" }, {
+      onUpdate: (fresh) => {
+        allUsers = (fresh.data || []).filter(u => u.id != currentUser.id);
+        renderUsersList(allUsers);
+      }
+    });
+    allUsers = (data.data || []).filter(u => u.id != currentUser.id);
+    renderUsersList(allUsers);
+  } catch {
+    document.getElementById("usersList").innerHTML =
+      `<div style="text-align:center;color:var(--danger);font-size:13px;padding:20px">Failed to load users</div>`;
+  }
 }
 
-function startChat() {
-  const id = document.getElementById("receiverId").value.trim();
-  if (!id) { toast("Enter a receiver user ID.", "error"); return; }
-  currentReceiver = id;
+function renderUsersList(users) {
+  const el = document.getElementById("usersList");
+  if (!el) return;
+  if (!users.length) {
+    el.innerHTML = `<div style="text-align:center;color:var(--text3);font-size:13px;padding:32px 0">No users found</div>`;
+    return;
+  }
+  // Build items using DOM — avoids any JSON/quote escaping issues in onclick
+  el.innerHTML = "";
+  users.forEach(u => {
+    const initials = (u.name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+    const isActive = currentReceiver && currentReceiver.id == u.id;
 
-  document.getElementById("chatEmpty").style.display       = "none";
-  document.getElementById("chatHeader").style.display      = "flex";
-  document.getElementById("chatMessages").style.display    = "flex";
-  document.getElementById("chatInputArea").style.display   = "flex";
-  document.getElementById("chatAvatar").textContent        = id;
-  document.getElementById("chatHeaderName").textContent    = "User #" + id;
+    const item = document.createElement("div");
+    item.className = "user-item" + (isActive ? " active" : "");
 
-  loadMessages();
+    // Store data safely on the element
+    item._chatUser = u;
+
+    item.innerHTML = `
+      <div class="avatar" style="width:34px;height:34px;font-size:12px;flex-shrink:0">
+        ${u.image ? `<img src="${u.image}">` : initials}
+      </div>
+      <div class="user-item-info">
+        <div class="user-item-name">${u.name || "—"}</div>
+        <div class="user-item-role">${clientsMap[u.client_id] || u.role || ""}</div>
+      </div>`;
+
+    item.addEventListener("click", () => startChat(item, u));
+    el.appendChild(item);
+  });
+}
+
+function filterUsers() {
+  const q = document.getElementById("userSearch").value.toLowerCase();
+  renderUsersList(allUsers.filter(u =>
+    (u.name || "").toLowerCase().includes(q) ||
+    (u.role || "").toLowerCase().includes(q)
+  ));
+}
+
+// ── Start chat with a user ───────────────────────────────
+function startChat(el, u) {
+  const { id, name, role, image } = u;
+  currentReceiver = { id, name, role, image };
+  lastMessageIds  = new Set();
+
+  // Update active state in list
+  document.querySelectorAll(".user-item").forEach(item => item.classList.remove("active"));
+  el.classList.add("active");
+
+  // Show chat area
+  document.getElementById("chatEmpty").style.display     = "none";
+  document.getElementById("chatHeader").style.display    = "flex";
+  document.getElementById("chatMessages").style.display  = "flex";
+  document.getElementById("chatInputArea").style.display = "flex";
+
+  // Fill header with real name + avatar
+  const avatarEl = document.getElementById("chatAvatar");
+  if (image) {
+    avatarEl.innerHTML = `<img src="${image}">`;
+  } else {
+    const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+    avatarEl.textContent = initials;
+  }
+  document.getElementById("chatHeaderName").textContent = name;
+  document.getElementById("chatHeaderSub").textContent  = clientsMap[u.client_id] || role || "Direct message";
+
+  // Focus input
+  document.getElementById("messageInput").focus();
+
+  // Start polling
+  loadMessages(true);
   clearInterval(pollInterval);
-  pollInterval = setInterval(loadMessages, 3000);
+  pollInterval = setInterval(() => loadMessages(false), 3000);
 }
 
-async function loadMessages() {
+// ── Load messages (smart diff — no full re-render) ───────
+async function loadMessages(forceScroll = false) {
   if (!currentReceiver) return;
   try {
-    const data = await api({ action: "getChat", sender_id: currentUser.id });
-    const msgs = (data.data || []).filter(m =>
-      (m.sender_id == currentUser.id && m.receiver_id == currentReceiver) ||
-      (m.sender_id == currentReceiver && m.receiver_id == currentUser.id)
-    );
-
-    const box = document.getElementById("chatMessages");
-    const wasAtBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-
-    box.innerHTML = msgs.length
-      ? msgs.map(m => {
-          const isMe = m.sender_id == currentUser.id;
-          return `
-          <div class="msg-wrap ${isMe ? "me" : "other"}">
-            <div class="bubble">${escHtml(m.message)}</div>
-            <div class="msg-time">${m.created_at || ""}</div>
-          </div>`;
-        }).join("")
-      : `<div style="text-align:center;color:var(--text3);font-size:13px;padding:20px">No messages yet. Say hello!</div>`;
-
-    if (wasAtBottom) box.scrollTop = box.scrollHeight;
+    invalidateCache("getChat");
+    const data = await api({ action: "getChat", sender_id: currentUser.id }, {
+      onUpdate: (fresh) => applyMessages(fresh.data || [], false)
+    });
+    applyMessages(data.data || [], forceScroll);
   } catch { /* silent */ }
 }
 
+function applyMessages(allData, forceScroll) {
+  if (!currentReceiver) return;
+  const msgs = allData.filter(m =>
+    (m.sender_id == currentUser.id      && m.receiver_id == currentReceiver.id) ||
+    (m.sender_id == currentReceiver.id  && m.receiver_id == currentUser.id)
+  );
+
+  const box = document.getElementById("chatMessages");
+  if (!box) return;
+  const wasAtBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+
+  const newMsgs = msgs.filter(m => !lastMessageIds.has(m.id));
+  if (newMsgs.length === 0 && lastMessageIds.size > 0) return;
+
+  if (lastMessageIds.size === 0) {
+    box.innerHTML = msgs.length
+      ? msgs.map(m => buildBubble(m)).join("")
+      : `<div style="text-align:center;color:var(--text3);font-size:13px;padding:20px">No messages yet. Say hello!</div>`;
+    msgs.forEach(m => lastMessageIds.add(m.id));
+  } else {
+    const placeholder = box.querySelector("div[style*='No messages']");
+    if (placeholder) placeholder.remove();
+    newMsgs.forEach(m => {
+      const div = document.createElement("div");
+      div.innerHTML = buildBubble(m);
+      box.appendChild(div.firstElementChild);
+      lastMessageIds.add(m.id);
+    });
+  }
+
+  if (forceScroll || wasAtBottom) box.scrollTop = box.scrollHeight;
+}
+
+function buildBubble(m) {
+  const isMe = m.sender_id == currentUser.id;
+  return `
+  <div class="msg-wrap ${isMe ? "me" : "other"}">
+    <div class="bubble">${escHtml(m.message)}</div>
+    <div class="msg-time">${m.created_at || ""}</div>
+  </div>`;
+}
+
+// ── Send message ─────────────────────────────────────────
 async function sendMessage() {
   const input = document.getElementById("messageInput");
   const msg   = input.value.trim();
@@ -276,19 +431,36 @@ async function sendMessage() {
     await api({
       action:      "addChat",
       sender_id:   currentUser.id,
-      receiver_id: currentReceiver,
+      receiver_id: currentReceiver.id,
       message:     msg
-    });
-    loadMessages();
+    }, { noCache: true });
+    invalidateCache("getChat");
+    loadMessages(true);
   } catch { toast("Failed to send message.", "error"); }
+}
+
+// ── Helpers ──────────────────────────────────────────────
+function autoResize(el) {
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 120) + "px";
 }
 
 function escHtml(str) {
   return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-// Clean up polling on page unload
 window.addEventListener("beforeunload", () => clearInterval(pollInterval));
+
+// Init
+async function init() {
+  // Load clients first so lookup is ready when users render
+  try {
+    const data = await api({ action: "getClients" });
+    (data.data || []).forEach(c => { clientsMap[c.id] = c.name_ar || c.name_en || ""; });
+  } catch { /* non-fatal */ }
+  loadUsers();
+}
+init();
 </script>
 </body>
 </html>
