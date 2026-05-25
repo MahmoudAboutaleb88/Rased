@@ -1,2 +1,75 @@
 <!DOCTYPE html>
-<html><head><meta http-equiv="refresh" content="0;url=login.html"></head><body></body></html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RASED System</title>
+
+<style>
+
+body{
+  margin:0;
+  font-family:Arial;
+  overflow:hidden;
+}
+
+iframe{
+  width:100%;
+  height:100vh;
+  border:none;
+}
+
+.nav{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:0;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- MAIN APP CONTAINER -->
+<iframe id="appFrame" src="login.html"></iframe>
+
+<script>
+
+const routes = {
+  login: "login.html",
+  dashboard: "dashboard.html",
+  clients: "clients.html",
+  users: "users.html",
+  sites: "sites.html",
+  contracts: "contracts.html",
+  channels: "channels.html",
+  chat: "chat.html"
+};
+
+/* GLOBAL NAV FUNCTION */
+function navigate(page){
+  document.getElementById("appFrame").src = routes[page];
+  localStorage.setItem("currentPage", page);
+}
+
+/* AUTO RESTORE LAST PAGE */
+window.onload = function(){
+
+  const saved = localStorage.getItem("currentPage");
+
+  if(saved && routes[saved]){
+    document.getElementById("appFrame").src = routes[saved];
+  } else {
+    document.getElementById("appFrame").src = "login.html";
+  }
+
+};
+
+</script>
+
+</body>
+</html>
