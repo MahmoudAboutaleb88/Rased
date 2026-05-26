@@ -150,6 +150,7 @@
 <script>
 document.getElementById("sidebar-mount").innerHTML = SIDEBAR_HTML;
 const user = requireAuth();
+if (!user) return;
 renderTopbarUser();
 setActiveLink();
 

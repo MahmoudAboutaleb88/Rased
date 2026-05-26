@@ -36,15 +36,24 @@ const cache = {
   }
 };
 
-/* ── AUTH ─── */
+/* ── AUTH ───────────────────────────────────────────────────
+   BUG FIX: requireAuth كانت بتنادي getUser() مرتين
+   لو المستخدم مش موجود، كانت بتعمل redirect بس مش بتوقف،
+   فالسطر التاني بيرجع null وده بيعمل crash في كل الصفحات.
+   الحل: نحفظ النتيجة في متغير ونرجع منها مباشرة.
+─────────────────────────────────────────────────────────── */
 function getUser() {
   const u = localStorage.getItem("rased_user");
   return u ? JSON.parse(u) : null;
 }
 
 function requireAuth() {
-  if (!getUser()) window.location.href = "login.html";
-  return getUser();
+  const user = getUser();
+  if (!user) {
+    window.location.href = "login.html";
+    return null; // ← نوقف التنفيذ بعد الـ redirect
+  }
+  return user;
 }
 
 function logout() {
@@ -227,8 +236,20 @@ function _extractTitle(html) {
   return m ? m[1] : "RASED";
 }
 
+/* ── SPA navigate ───────────────────────────────────────────
+   BUG FIX: كانت الـ intervals (زي chat polling) بتفضل شغالة
+   بعد ما تتغير الصفحة لأن beforeunload مش بيتنادى في SPA.
+   الحل: قبل أي page swap نمسح أي interval مسجّل في
+   window._activePollInterval.
+─────────────────────────────────────────────────────────── */
 async function navigate(href, pushState = true) {
   if (_transitioning) return;
+
+  // ← امسح الـ chat polling قبل ما تغير الصفحة
+  if (window._activePollInterval) {
+    clearInterval(window._activePollInterval);
+    window._activePollInterval = null;
+  }
 
   // If it's login page, do real navigation
   if (href === "login.html" || href === "index.html") {
@@ -297,7 +318,6 @@ async function navigate(href, pushState = true) {
   const scripts = _extractScripts(html);
   for (const s of scripts) {
     if (!s.src || s.src.endsWith("shared.js")) {
-      // inline script or shared.js (skip shared.js src)
       if (!s.src) {
         try {
           const fn = new Function(s.text);
@@ -305,7 +325,6 @@ async function navigate(href, pushState = true) {
         } catch (e) { console.error("SPA script error:", e); }
       }
     } else {
-      // external script not already loaded
       if (!document.querySelector(`script[src="${s.src}"]`)) {
         await _loadScript(s.src);
       }
@@ -371,7 +390,6 @@ function _interceptLinks() {
     if (!link) return;
     const href = link.getAttribute("href");
     if (!href || href.startsWith("http") || href.startsWith("#") || href.startsWith("mailto")) return;
-    // Only intercept .html internal links
     if (!href.endsWith(".html")) return;
     e.preventDefault();
     navigate(href);
@@ -401,7 +419,6 @@ window.addEventListener("popstate", (e) => {
 
 // Init SPA on first load
 (function initSPA() {
-  // Inject loader styles
   const loaderStyle = document.createElement("style");
   loaderStyle.textContent = `
     #spa-loader {
@@ -424,7 +441,6 @@ window.addEventListener("popstate", (e) => {
   _interceptLinks();
   _prefetchLinks();
 
-  // Cache current page so back button works
   const currentPage = location.pathname.split("/").pop() || "dashboard.html";
   if (!history.state) {
     history.replaceState({ href: currentPage }, "", currentPage);

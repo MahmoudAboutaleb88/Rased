@@ -264,11 +264,23 @@ const currentUser = requireAuth();
 renderTopbarUser();
 setActiveLink();
 
-let currentReceiver     = null;  // { id, name, role, image }
-let pollInterval        = null;
-let allUsers            = [];
-let lastMessageIds      = new Set();
-let clientsMap          = {};  // id -> name_ar
+let currentReceiver = null;  // { id, name, role, image }
+let allUsers        = [];
+let lastMessageIds  = new Set();
+let clientsMap      = {};    // id -> name_ar
+
+/*
+  BUG FIX: تراكم الـ polling intervals
+  ─────────────────────────────────────
+  المشكلة الأصلية: الكود كان بيستخدم متغير محلي (pollInterval)
+  فلما الـ SPA بيعمل page swap، المتغير بيتمسح لكن الـ interval
+  القديم بيفضل شغال في الخلفية. كل زيارة للصفحة = interval جديد.
+  بعد 3 زيارات = 3 loops شغالين مع بعض.
+
+  الحل: نحط الـ interval في window._activePollInterval
+  عشان shared.js يقدر يمسحه قبل أي page navigate.
+  وكمان نمسحه في startChat قبل ما نعمل واحد جديد.
+*/
 
 // ── Load users into sidebar ──────────────────────────────
 async function loadUsers() {
@@ -294,7 +306,6 @@ function renderUsersList(users) {
     el.innerHTML = `<div style="text-align:center;color:var(--text3);font-size:13px;padding:32px 0">No users found</div>`;
     return;
   }
-  // Build items using DOM — avoids any JSON/quote escaping issues in onclick
   el.innerHTML = "";
   users.forEach(u => {
     const initials = (u.name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -302,8 +313,6 @@ function renderUsersList(users) {
 
     const item = document.createElement("div");
     item.className = "user-item" + (isActive ? " active" : "");
-
-    // Store data safely on the element
     item._chatUser = u;
 
     item.innerHTML = `
@@ -334,17 +343,14 @@ function startChat(el, u) {
   currentReceiver = { id, name, role, image };
   lastMessageIds  = new Set();
 
-  // Update active state in list
   document.querySelectorAll(".user-item").forEach(item => item.classList.remove("active"));
   el.classList.add("active");
 
-  // Show chat area
   document.getElementById("chatEmpty").style.display     = "none";
   document.getElementById("chatHeader").style.display    = "flex";
   document.getElementById("chatMessages").style.display  = "flex";
   document.getElementById("chatInputArea").style.display = "flex";
 
-  // Fill header with real name + avatar
   const avatarEl = document.getElementById("chatAvatar");
   if (image) {
     avatarEl.innerHTML = `<img src="${image}">`;
@@ -355,16 +361,21 @@ function startChat(el, u) {
   document.getElementById("chatHeaderName").textContent = name;
   document.getElementById("chatHeaderSub").textContent  = clientsMap[u.client_id] || role || "Direct message";
 
-  // Focus input
   document.getElementById("messageInput").focus();
 
-  // Start polling
+  // ← امسح أي interval قديم (سواء من زيارة سابقة أو conversation سابقة)
+  if (window._activePollInterval) {
+    clearInterval(window._activePollInterval);
+    window._activePollInterval = null;
+  }
+
   loadMessages(true);
-  clearInterval(pollInterval);
-  pollInterval = setInterval(() => loadMessages(false), 3000);
+
+  // ← اشتغل على window عشان shared.js يقدر يمسحه عند navigate
+  window._activePollInterval = setInterval(() => loadMessages(false), 3000);
 }
 
-// ── Load messages (smart diff — no full re-render) ───────
+// ── Load messages ────────────────────────────────────────
 async function loadMessages(forceScroll = false) {
   if (!currentReceiver) return;
   try {
@@ -449,11 +460,16 @@ function escHtml(str) {
   return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-window.addEventListener("beforeunload", () => clearInterval(pollInterval));
+// ← للـ full page unload (مش SPA) نمسح الـ interval كمان
+window.addEventListener("beforeunload", () => {
+  if (window._activePollInterval) {
+    clearInterval(window._activePollInterval);
+    window._activePollInterval = null;
+  }
+});
 
 // Init
 async function init() {
-  // Load clients first so lookup is ready when users render
   try {
     const data = await api({ action: "getClients" });
     (data.data || []).forEach(c => { clientsMap[c.id] = c.name_ar || c.name_en || ""; });

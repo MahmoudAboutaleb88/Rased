@@ -124,15 +124,41 @@ function renderDashboard(clients, users, sites, contracts) {
     : `<tr><td colspan="6"><div class="empty-state"><p>No contracts found</p></div></td></tr>`;
 }
 
+/*
+  BUG FIX: كان onUpdate بينادي loadDashboard() من جديد
+  وده كان بيعمل لوب لا نهائي من طلبات API.
+
+  الحل: كل onUpdate بيحدّث المتغير بتاعه بس، وبعدين
+  بيستدعي renderDashboard مباشرة بالبيانات الجديدة
+  من غير ما يعمل reload كامل.
+*/
 async function loadDashboard() {
   try {
-    const [clients, users, sites, contracts] = await Promise.all([
-      api({ action: "getClients" }, { onUpdate: () => loadDashboard() }),
-      api({ action: "getUsers" },   { onUpdate: () => loadDashboard() }),
-      api({ action: "getSites" },   { onUpdate: () => loadDashboard() }),
-      api({ action: "getContracts" }, { onUpdate: () => loadDashboard() })
+    // نخزن البيانات في متغيرات محلية
+    let _clients, _users, _sites, _contracts;
+
+    function tryRender() {
+      if (_clients && _users && _sites && _contracts) {
+        renderDashboard(_clients, _users, _sites, _contracts);
+      }
+    }
+
+    [_clients, _users, _sites, _contracts] = await Promise.all([
+      api({ action: "getClients" }, {
+        onUpdate: (fresh) => { _clients = fresh; tryRender(); }
+      }),
+      api({ action: "getUsers" }, {
+        onUpdate: (fresh) => { _users = fresh; tryRender(); }
+      }),
+      api({ action: "getSites" }, {
+        onUpdate: (fresh) => { _sites = fresh; tryRender(); }
+      }),
+      api({ action: "getContracts" }, {
+        onUpdate: (fresh) => { _contracts = fresh; tryRender(); }
+      })
     ]);
-    renderDashboard(clients, users, sites, contracts);
+
+    renderDashboard(_clients, _users, _sites, _contracts);
   } catch (e) { console.error(e); }
 }
 
