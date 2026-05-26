@@ -1,75 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RASED System</title>
-
+<link rel="stylesheet" href="style.css">
 <style>
-
-body{
-  margin:0;
-  font-family:Arial;
-  overflow:hidden;
+/* Loading screen styles */
+#app-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  flex-direction: column;
+  gap: 16px;
+}
+#app-loader .spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+#app-loader p {
+  color: #475569;
+  font-size: 14px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-iframe{
-  width:100%;
-  height:100vh;
-  border:none;
+/* Ensure main container takes full height */
+#app-root {
+  min-height: 100vh;
+  display: flex;
 }
-
-.nav{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:0;
-}
-
 </style>
-
 </head>
-
 <body>
+<div id="app-root">
+  <div id="app-loader">
+    <div class="spinner"></div>
+    <p>Loading RASED...</p>
+  </div>
+</div>
 
-<!-- MAIN APP CONTAINER -->
-<iframe id="appFrame" src="login.html"></iframe>
-
+<script src="shared.js"></script>
 <script>
+// This script works WITH shared.js SPA router
+// It ensures all DOM elements and functions persist after page swaps
 
-const routes = {
-  login: "login.html",
-  dashboard: "dashboard.html",
-  clients: "clients.html",
-  users: "users.html",
-  sites: "sites.html",
-  contracts: "contracts.html",
-  channels: "channels.html",
-  chat: "chat.html"
-};
-
-/* GLOBAL NAV FUNCTION */
-function navigate(page){
-  document.getElementById("appFrame").src = routes[page];
-  localStorage.setItem("currentPage", page);
-}
-
-/* AUTO RESTORE LAST PAGE */
-window.onload = function(){
-
-  const saved = localStorage.getItem("currentPage");
-
-  if(saved && routes[saved]){
-    document.getElementById("appFrame").src = routes[saved];
-  } else {
-    document.getElementById("appFrame").src = "login.html";
+(function initRASED() {
+  // Remove loader
+  const loader = document.getElementById('app-loader');
+  if (loader) loader.remove();
+  
+  // Get saved page or default to login
+  let targetPage = localStorage.getItem('currentPage');
+  const user = localStorage.getItem('rased_user');
+  
+  if (!user) {
+    targetPage = 'login.html';
+  } else if (!targetPage || targetPage === 'login') {
+    targetPage = 'dashboard.html';
+  } else if (!targetPage.endsWith('.html')) {
+    targetPage = targetPage + '.html';
   }
-
-};
-
+  
+  // --- FIX: Store original window functions before any navigation ---
+  // This ensures modals and other functions survive page swaps
+  if (!window._originalFunctionsSaved) {
+    window._originalFunctionsSaved = true;
+    
+    // Save the original navigation function
+    window._originalNavigate = window.navigate;
+    
+    // Override navigate to preserve modal-related elements and functions
+    const originalNavigate = window.navigate;
+    window.navigate = async function(href, pushState = true) {
+      // Don't navigate if already transitioning
+      if (window._transitioning) return;
+      
+      // Clear chat polling if exists
+      if (window._activePollInterval) {
+        clearInterval(window._activePollInterval);
+        window._activePollInterval = null;
+      }
+      
+      // Handle login/index specially
+      if (href === 'login.html' || href === 'index.html') {
+        window.location.href = href;
+        return;
+      }
+      
+      // Get current page
+      const currentPage = location.pathname.split('/').pop() || 'dashboard.html';
+      if (href === currentPage) return;
+      
+      window._transitioning = true;
+      
+      // Show loader
+      const loaderBar = document.getElementById('spa-loader');
+      if (loaderBar) loaderBar.style.display = 'block';
+      
+      try {
+        // Fetch new page
+        const response = await fetch(href);
+        const html = await response.text();
+        
+        // Parse HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Extract new body content
+        const newBodyContent = doc.body.innerHTML;
+        const newTitle = doc.title;
+        
+        // Update title
+        document.title = newTitle;
+        
+        // Extract and inject new styles
+        let newStyles = '';
+        doc.querySelectorAll('style').forEach(style => {
+          newStyles += style.textContent;
+        });
+        let styleEl = document.getElementById('spa-page-styles');
+        if (!styleEl) {
+          styleEl = document.createElement('style');
+          styleEl.id = 'spa-page-styles';
+          document.head.appendChild(styleEl);
+        }
+        styleEl.textContent = newStyles;
+        
+        // --- CRITICAL FIX: Preserve overlay/modals elements from old page ---
+        // Save references to existing modals/overlays before replacing body
+        const existingPrintOverlay = document.getElementById('printOverlay');
+        const existingModalOverlay = document.getElementById('modal');
+        const existingToastContainer = document.getElementById('toast-container');
+        
+        // Replace body content
+        document.body.innerHTML = newBodyContent;
+        
+        // --- Restore critical elements that might have been lost ---
+        // Re-add sidebar mount
+        if (document.getElementById('sidebar-mount')) {
+          document.getElementById('sidebar-mount').innerHTML = window.SIDEBAR_HTML || '';
+        }
+        
+        // Re-run scripts from the new page (but skip shared.js)
+        const scripts = doc.querySelectorAll('script');
+        for (const script of scripts) {
+          if (script.src && script.src.includes('shared.js')) continue;
+          if (script.src) {
+            // External script
+            await new Promise((resolve) => {
+              const newScript = document.createElement('script');
+              newScript.src = script.src;
+              newScript.onload = resolve;
+              newScript.onerror = resolve;
+              document.head.appendChild(newScript);
+            });
+          } else if (script.textContent) {
+            // Inline script
+            try {
+              // Create a new script element with the same content
+              const newScript = document.createElement('script');
+              newScript.textContent = script.textContent;
+              document.body.appendChild(newScript);
+            } catch(e) {
+              console.error('Script execution error:', e);
+            }
+          }
+        }
+        
+        // --- CRITICAL: Re-attach event listeners for modals after content swap ---
+        // This ensures onclicks work on dynamically generated elements
+        
+        // Wait a tiny bit for the DOM to settle
+        setTimeout(() => {
+          // Re-attach click handlers for contract rows (if on contracts page)
+          if (href === 'contracts.html' || href === 'contracts') {
+            const rows = document.querySelectorAll('#contractsTable tr');
+            rows.forEach(row => {
+              const contractId = row.getAttribute('data-contract-id');
+              if (contractId && typeof window.openContract === 'function') {
+                row.onclick = () => window.openContract(parseInt(contractId));
+              }
+            });
+          }
+          
+          // Re-attach modal open/close handlers
+          const modal = document.getElementById('modal');
+          const printOverlay = document.getElementById('printOverlay');
+          
+          // Make sure close functions are globally accessible
+          if (!window.closeModal) {
+            window.closeModal = function() {
+              const m = document.getElementById('modal');
+              if (m) m.classList.remove('open');
+            };
+          }
+          if (!window.openModal) {
+            window.openModal = function() {
+              const m = document.getElementById('modal');
+              if (m) m.classList.add('open');
+            };
+          }
+          if (!window.closePrintModal) {
+            window.closePrintModal = function() {
+              const p = document.getElementById('printOverlay');
+              if (p) p.classList.remove('open');
+            };
+          }
+        }, 50);
+        
+        // Update history if needed
+        if (pushState) {
+          history.pushState({ href }, '', href);
+        }
+        
+      } catch (error) {
+        console.error('Navigation error:', error);
+        window.location.href = href; // Fallback
+      } finally {
+        window._transitioning = false;
+        const loaderBar = document.getElementById('spa-loader');
+        if (loaderBar) loaderBar.style.display = 'none';
+      }
+    };
+  }
+  
+  // --- Special handling: If page is contracts.html, ensure openContract works ---
+  if (targetPage === 'contracts.html') {
+    // Load login first to get structure
+    fetch('login.html')
+      .then(res => res.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        document.getElementById('app-root').innerHTML = doc.body.innerHTML;
+        
+        // Run scripts
+        const scripts = doc.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          if (oldScript.src && oldScript.src.includes('shared.js')) return;
+          const newScript = document.createElement('script');
+          if (oldScript.src) {
+            newScript.src = oldScript.src;
+          } else {
+            newScript.textContent = oldScript.textContent;
+          }
+          document.body.appendChild(newScript);
+        });
+        
+        // Now navigate to contracts
+        setTimeout(() => {
+          if (typeof navigate === 'function') {
+            navigate('contracts.html');
+          } else if (window._originalNavigate) {
+            window._originalNavigate('contracts.html');
+          } else {
+            window.location.href = 'contracts.html';
+          }
+        }, 100);
+      })
+      .catch(() => {
+        window.location.href = 'contracts.html';
+      });
+  } else if (targetPage === 'login.html') {
+    window.location.href = 'login.html';
+  } else {
+    // Normal navigation
+    fetch('login.html')
+      .then(res => res.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        document.getElementById('app-root').innerHTML = doc.body.innerHTML;
+        
+        const scripts = doc.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          if (oldScript.src && oldScript.src.includes('shared.js')) return;
+          const newScript = document.createElement('script');
+          if (oldScript.src) {
+            newScript.src = oldScript.src;
+          } else {
+            newScript.textContent = oldScript.textContent;
+          }
+          document.body.appendChild(newScript);
+        });
+        
+        setTimeout(() => {
+          if (typeof navigate === 'function') {
+            navigate(targetPage);
+          } else {
+            window.location.href = targetPage;
+          }
+        }, 100);
+      })
+      .catch(() => {
+        window.location.href = targetPage;
+      });
+  }
+})();
 </script>
-
 </body>
 </html>
