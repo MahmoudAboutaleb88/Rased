@@ -64,25 +64,19 @@ setActiveLink();
 
 function renderReports(clients, users, sites, contracts, channels) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  set("rClients",   (clients.data   || []).length);
-  set("rUsers",     (users.data     || []).length);
-  set("rSites",     (sites.data     || []).length);
-  set("rContracts", (contracts.data || []).length);
-  set("rChannels",  (channels.data  || []).length);
+  set("rClients",  (clients.data||[]).length);
+  set("rUsers",    (users.data||[]).length);
+  set("rSites",    (sites.data||[]).length);
+  set("rContracts",(contracts.data||[]).length);
+  set("rChannels", (channels.data||[]).length);
 
   const serviceMap = {};
-  (contracts.data || []).forEach(c => {
+  (contracts.data||[]).forEach(c => {
     serviceMap[c.service_type] = (serviceMap[c.service_type] || 0) + 1;
   });
-  const total  = (contracts.data || []).length || 1;
-  const colors = {
-    Security:      "#3b82f6",
-    Safety:        "#10b981",
-    Housekeeping:  "#f59e0b",
-    Landscaping:   "#22c55e",
-    "Pest Control":"#a855f7"
-  };
-  const rows = Object.entries(serviceMap).sort((a, b) => b[1] - a[1]);
+  const total = (contracts.data||[]).length || 1;
+  const colors = { Security: "#3b82f6", Safety: "#10b981", Housekeeping: "#f59e0b", Landscaping: "#22c55e", "Pest Control": "#a855f7" };
+  const rows = Object.entries(serviceMap).sort((a,b) => b[1]-a[1]);
 
   const sb = document.getElementById("serviceBreakdown");
   if (!sb) return;
@@ -102,43 +96,16 @@ function renderReports(clients, users, sites, contracts, channels) {
     : `<div class="empty-state"><p>No contract data</p></div>`;
 }
 
-/*
-  BUG FIX: كانت onUpdate بتنادي loadReports() من جديد
-  وده كان بيعمل لوب لا نهائي — نفس مشكلة dashboard.
-
-  الحل: كل onUpdate بتحدّث المتغير بتاعها بس وبتنادي
-  tryRender() اللي بتشوف لو كل البيانات جاهزة وتعمل render.
-*/
 async function loadReports() {
-  try {
-    let _clients, _users, _sites, _contracts, _channels;
-
-    function tryRender() {
-      if (_clients && _users && _sites && _contracts && _channels) {
-        renderReports(_clients, _users, _sites, _contracts, _channels);
-      }
-    }
-
-    [_clients, _users, _sites, _contracts, _channels] = await Promise.all([
-      api({ action: "getClients" }, {
-        onUpdate: (fresh) => { _clients = fresh; tryRender(); }
-      }),
-      api({ action: "getUsers" }, {
-        onUpdate: (fresh) => { _users = fresh; tryRender(); }
-      }),
-      api({ action: "getSites" }, {
-        onUpdate: (fresh) => { _sites = fresh; tryRender(); }
-      }),
-      api({ action: "getContracts" }, {
-        onUpdate: (fresh) => { _contracts = fresh; tryRender(); }
-      }),
-      api({ action: "getChannels" }, {
-        onUpdate: (fresh) => { _channels = fresh; tryRender(); }
-      })
-    ]);
-
-    renderReports(_clients, _users, _sites, _contracts, _channels);
-  } catch (e) { console.error(e); }
+  const onUpdate = () => loadReports();
+  const [clients, users, sites, contracts, channels] = await Promise.all([
+    api({ action: "getClients" },   { onUpdate }),
+    api({ action: "getUsers" },     { onUpdate }),
+    api({ action: "getSites" },     { onUpdate }),
+    api({ action: "getContracts" }, { onUpdate }),
+    api({ action: "getChannels" },  { onUpdate })
+  ]);
+  renderReports(clients, users, sites, contracts, channels);
 }
 
 loadReports();

@@ -14,21 +14,13 @@ body { background: var(--navy); display: flex; align-items: center; justify-cont
   padding: 44px 40px 40px;
   box-shadow: 0 24px 80px rgba(0,0,0,0.35);
 }
-.login-brand {
-  text-align: center;
-  margin-bottom: 36px;
-}
+.login-brand { text-align: center; margin-bottom: 36px; }
 .brand-icon {
-  width: 60px;
-  height: 60px;
+  width: 60px; height: 60px;
   background: var(--accent);
   border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  font-weight: 700;
-  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; font-weight: 700; color: white;
   margin: 0 auto 16px;
 }
 .brand-name { font-size: 24px; font-weight: 700; color: var(--navy); letter-spacing: 3px; }
@@ -37,33 +29,18 @@ body { background: var(--navy); display: flex; align-items: center; justify-cont
 .login-card label { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; }
 .login-card input { font-size: 15px; }
 .login-btn {
-  width: 100%;
-  padding: 13px;
-  margin-top: 8px;
-  border-radius: 10px;
-  background: var(--navy);
-  color: white;
-  border: none;
-  font-size: 15px;
-  font-weight: 600;
-  font-family: var(--font);
-  cursor: pointer;
-  letter-spacing: 1px;
+  width: 100%; padding: 13px; margin-top: 8px;
+  border-radius: 10px; background: var(--navy); color: white;
+  border: none; font-size: 15px; font-weight: 600;
+  font-family: var(--font); cursor: pointer; letter-spacing: 1px;
   transition: background 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.login-btn:hover { background: var(--navy2); }
+.login-btn:hover    { background: var(--navy2); }
 .login-btn:disabled { opacity: 0.65; cursor: not-allowed; }
 .msg {
-  margin-top: 16px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  text-align: center;
-  display: none;
+  margin-top: 16px; padding: 10px 14px;
+  border-radius: 8px; font-size: 13px; text-align: center; display: none;
 }
 .msg.error   { display: block; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 .msg.success { display: block; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
@@ -74,15 +51,15 @@ body { background: var(--navy); display: flex; align-items: center; justify-cont
   <div class="login-card">
     <div class="login-brand">
       <div class="brand-icon" style="background:none;padding:0;overflow:hidden">
-  <img src="rasedlogo.png" style="width:60px;height:60px;object-fit:contain">
-</div>
+        <img src="rasedlogo.png" style="width:60px;height:60px;object-fit:contain">
+      </div>
       <div class="brand-name">RASED</div>
       <div class="brand-sub">Facility Management System</div>
     </div>
 
     <div class="form-group">
       <label>PHONE NUMBER</label>
-      <input type="tel" id="phone" placeholder="05xxxxxxxx" autocomplete="username">
+      <input type="tel" id="phone" placeholder="Phone number" autocomplete="username">
     </div>
 
     <div class="form-group">
@@ -100,38 +77,64 @@ body { background: var(--navy); display: flex; align-items: center; justify-cont
 
 <script src="shared.js"></script>
 <script>
+// Redirect if already logged in
+(function () {
+  try {
+    const u = localStorage.getItem("rased_user");
+    if (u && JSON.parse(u)) window.location.href = "dashboard.html";
+  } catch {}
+})();
+
+// Rate limiting: max 5 attempts per minute
+let loginAttempts  = 0;
+let lastAttemptReset = Date.now();
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS   = 60_000;
+
 document.getElementById("password").addEventListener("keydown", e => {
   if (e.key === "Enter") doLogin();
 });
 
 async function doLogin() {
-  const phone    = document.getElementById("phone").value.trim();
-  const password = document.getElementById("password").value;
-  const btn      = document.getElementById("loginBtn");
-  const msg      = document.getElementById("msg");
+  // Reset counter after lockout window
+  if (Date.now() - lastAttemptReset >= LOCKOUT_MS) {
+    loginAttempts    = 0;
+    lastAttemptReset = Date.now();
+  }
 
-  if (!phone || !password) {
-    showMsg("Please enter phone and password.", "error");
+  if (loginAttempts >= MAX_ATTEMPTS) {
+    const wait = Math.ceil((LOCKOUT_MS - (Date.now() - lastAttemptReset)) / 1000);
+    showMsg(`Too many attempts. Try again in ${wait} seconds.`, "error");
     return;
   }
 
+  const phone    = document.getElementById("phone").value.trim().replace(/\s/g, "");
+  const password = document.getElementById("password").value;
+  const btn      = document.getElementById("loginBtn");
+
+  if (!phone)    { showMsg("Please enter phone number.", "error"); return; }
+  if (!password) { showMsg("Please enter password.", "error"); return; }
+
+  loginAttempts++;
   btn.disabled = true;
   document.getElementById("btnText").textContent = "Logging in…";
-  msg.className = "msg";
+  document.getElementById("msg").className = "msg";
 
   try {
     const data = await api({ action: "login", phone, password });
 
     if (data.success) {
-      localStorage.setItem("rased_user", JSON.stringify(data.data));
+      const userData     = data.data;
+      userData.loginTime = Date.now();
+      localStorage.setItem("rased_user", JSON.stringify(userData));
       showMsg("Login successful! Redirecting…", "success");
-      setTimeout(() => window.location.href = "dashboard.html", 900);
+      setTimeout(() => { window.location.href = "dashboard.html"; }, 900);
     } else {
       showMsg(data.message || "Invalid phone or password.", "error");
       btn.disabled = false;
       document.getElementById("btnText").textContent = "LOGIN";
     }
-  } catch (e) {
+  } catch {
     showMsg("Connection error. Please try again.", "error");
     btn.disabled = false;
     document.getElementById("btnText").textContent = "LOGIN";
@@ -139,9 +142,9 @@ async function doLogin() {
 }
 
 function showMsg(text, type) {
-  const el = document.getElementById("msg");
+  const el     = document.getElementById("msg");
   el.textContent = text;
-  el.className = "msg " + type;
+  el.className   = "msg " + type;
 }
 </script>
 </body>
