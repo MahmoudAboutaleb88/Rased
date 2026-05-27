@@ -678,16 +678,18 @@
       /* ════════════════════════════════
          AUTO-LOGIN — لو في session محفوظة
       ════════════════════════════════ */
-      (function checkSavedSession() {
-        const saved = localStorage.getItem("rased_user");
-        if (!saved) return;
-        try {
-          JSON.parse(saved);
-          window.location.replace("/");
-        } catch {
-          localStorage.removeItem("rased_user");
-        }
-      })();
+(function checkSavedSession() {
+  const saved = localStorage.getItem("rased_user");
+  if (!saved) return;
+  try {
+    const user = JSON.parse(saved);
+    const email = (user.login_id || "").toLowerCase();
+    const dest  = email.endsWith("@rasid.com.eg") ? "/app.html" : "/clientadmin.html";
+    window.location.replace(dest);
+  } catch {
+    localStorage.removeItem("rased_user");
+  }
+})();
 
       /* ════════════════════════════════
          TRANSLATIONS
@@ -865,5 +867,6 @@
         }
       });
     </script>
+
   </body>
 </html>
