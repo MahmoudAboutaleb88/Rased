@@ -34,7 +34,7 @@ const cache = {
 };
 
 /* ── AUTH ───────────────────────────────────────────────────
-   FIX: logout / requireAuth كانوا بيروحوا لـ login.html
+   FIX: logout / requireAuth كانوا بيروحوا لـ index.html
    والملف الفعلي اسمه index.html — اتصلح.
    FIX: requireAuth بترجع null لو مفيش مستخدم، وكل صفحة
    لازم تعمل guard على الـ return value (if (!user) return).
@@ -254,7 +254,7 @@ async function navigate(href, pushState = true) {
   }
 
   // صفحة اللوجين → real navigation
-  if (href === LOGIN_PAGE || href === "login.html") {
+  if (href === LOGIN_PAGE || href === "index.html") {
     window.location.href = href;
     return;
   }
