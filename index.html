@@ -669,7 +669,7 @@
       </div>
     </div>
 
-    <script>
+<script>
       /* ════════════════════════════════
          CONFIG
       ════════════════════════════════ */
@@ -677,16 +677,13 @@
 
       /* ════════════════════════════════
          AUTO-LOGIN — لو في session محفوظة
-         يروح للصفحة الصح مباشرة
       ════════════════════════════════ */
       (function checkSavedSession() {
         const saved = localStorage.getItem("rased_user");
         if (!saved) return;
         try {
-          const user = JSON.parse(saved);
-          const email = (user.login_id || "").toLowerCase();
-          const dest  = email.endsWith("@rasid.com.eg") ? "/app.html" : "/clientadmin.html";
-          window.location.replace(dest);
+          JSON.parse(saved);
+          window.location.replace("/");
         } catch {
           localStorage.removeItem("rased_user");
         }
@@ -850,14 +847,13 @@
           const json = await callAPI({ action: "login", login_id, password });
 
           if (json.success) {
-            const email = (json.data.login_id || "").toLowerCase();
-            /* ── وجّه لـ app.html أو clientadmin.html ── */
-            const dest = email.endsWith("@rasid.com.eg") ? "/app.html" : "/clientadmin.html";
-
+            /* خزّن بيانات المستخدم — app.html هيقرأ منها ويقرر */
             localStorage.setItem("rased_user", JSON.stringify(json.data));
             successBox.classList.add("is-visible");
 
-            setTimeout(() => { window.location.replace(dest); }, 1200);
+            /* روح لـ "/" دايماً — الـ vercel rewrite يوجّه لـ app.html
+               وapp.html يقرر بناءً على login_id لو admin أو client */
+            setTimeout(() => { window.location.replace("/"); }, 1200);
           } else {
             showError("errorInvalid");
             setLoading(false);
