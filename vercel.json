@@ -1,5 +1,9 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/app.html" }
+    { "source": "/app.html",        "destination": "/app.html" },
+    { "source": "/clientadmin.html","destination": "/clientadmin.html" },
+    { "source": "/index.html",      "destination": "/index.html" },
+    { "source": "/",                "destination": "/app.html"  },
+    { "source": "/((?!index\\.html|assets/).*)", "destination": "/app.html" }
   ]
 }
