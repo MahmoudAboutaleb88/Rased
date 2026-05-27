@@ -34,7 +34,7 @@ const cache = {
 };
 
 /* ── AUTH ───────────────────────────────────────────────────
-   FIX: logout / requireAuth كانوا بيروحوا لـ index.html
+   FIX: logout / requireAuth كانوا بيروحوا لـ login.html
    والملف الفعلي اسمه index.html — اتصلح.
    FIX: requireAuth بترجع null لو مفيش مستخدم، وكل صفحة
    لازم تعمل guard على الـ return value (if (!user) return).
@@ -254,7 +254,7 @@ async function navigate(href, pushState = true) {
   }
 
   // صفحة اللوجين → real navigation
-  if (href === LOGIN_PAGE || href === "index.html") {
+  if (href === LOGIN_PAGE || href === "login.html") {
     window.location.href = href;
     return;
   }
@@ -287,7 +287,7 @@ async function navigate(href, pushState = true) {
 
   // Swap content
   document.title = _extractTitle(html);
-  if (pushState) history.pushState({ href }, "", href);
+  if (pushState) history.replaceState({ href }, "", "/");
 
   // Inject extra <style> tags
   let styleEl = document.getElementById("spa-page-styles");
@@ -397,7 +397,7 @@ function _prefetchLinks() {
 
 // Browser back/forward
 window.addEventListener("popstate", e => {
-  const href = (e.state && e.state.href) || location.pathname.split("/").pop() || "dashboard.html";
+  const href = (e.state && e.state.href) || "dashboard.html";
   navigate(href, false);
 });
 
@@ -420,7 +420,7 @@ window.addEventListener("popstate", e => {
   _interceptLinks();
   _prefetchLinks();
   const currentPage = location.pathname.split("/").pop() || "dashboard.html";
-  if (!history.state) history.replaceState({ href: currentPage }, "", currentPage);
+  if (!history.state) history.replaceState({ href: currentPage }, "", "/");
 })();
 
 /* ── SIDEBAR HTML ─── */
