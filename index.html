@@ -412,8 +412,6 @@
       }
       .support a:hover { background: #1eb85a; text-decoration: none; }
 
-
-      
       html[dir="ltr"] .submit svg { transform: scaleX(-1); }
 
       @media (prefers-reduced-motion: reduce) {
@@ -610,7 +608,7 @@
                   <path d="m5 8 7 5 7-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
                 <input id="email" name="email" type="text" autocomplete="username"
-                  placeholder="User@domin.com" required />
+                  placeholder="User@domain.com" required />
               </span>
             </label>
 
@@ -673,9 +671,26 @@
 
     <script>
       /* ════════════════════════════════
-         CONFIG  –  ضع رابط الـ Apps Script هنا
+         CONFIG
       ════════════════════════════════ */
       const API_URL = "https://script.google.com/macros/s/AKfycbzj-xMOMgwDKIyRK1-CSuD5mQx8M8wd1laM29xWRMIUJF-P6aSUREioB5Osux0aBTE/exec";
+
+      /* ════════════════════════════════
+         AUTO-LOGIN — لو في session محفوظة
+         يروح للصفحة الصح مباشرة
+      ════════════════════════════════ */
+      (function checkSavedSession() {
+        const saved = localStorage.getItem("rased_user");
+        if (!saved) return;
+        try {
+          const user = JSON.parse(saved);
+          const email = (user.login_id || "").toLowerCase();
+          const dest  = email.endsWith("@rasid.com.eg") ? "/app.html" : "/clientadmin.html";
+          window.location.replace(dest);
+        } catch {
+          localStorage.removeItem("rased_user");
+        }
+      })();
 
       /* ════════════════════════════════
          TRANSLATIONS
@@ -697,7 +712,6 @@
           errorEmpty: "الرجاء إدخال البريد الإلكتروني وكلمة المرور.",
           errorInvalid: "بيانات الدخول غير صحيحة، يرجى المحاولة مجددًا.",
           errorNetwork: "تعذّر الاتصال بالخادم، تحقق من الاتصال وحاول مجددًا.",
-          errorAccess: "غير مسموح بالدخول — البريد الإلكتروني يجب أن ينتهي بـ @rasid.com.eg",
           loginSuccess: "تم تسجيل الدخول بنجاح، جارٍ التحويل…",
           emailLabel: "البريد الإلكتروني / رقم الجوال",
           passwordLabel: "كلمة المرور",
@@ -725,7 +739,6 @@
           errorEmpty: "Please enter your email address and password.",
           errorInvalid: "Incorrect credentials, please try again.",
           errorNetwork: "Could not connect to the server. Check your connection and retry.",
-          errorAccess: "Access denied — email must end with @rasid.com.eg",
           loginSuccess: "Login successful, redirecting…",
           emailLabel: "Email address / Mobile",
           passwordLabel: "Password",
@@ -750,15 +763,9 @@
         document.documentElement.lang = lang;
         document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
         document.title = copy.title;
-
         document.querySelectorAll("[data-i18n]").forEach(el => {
           if (copy[el.dataset.i18n] !== undefined) el.textContent = copy[el.dataset.i18n];
         });
-        document.querySelectorAll("[data-i18n-title]").forEach(el => {
-          const label = copy[el.dataset.i18nTitle];
-          if (label) { el.title = label; el.setAttribute("aria-label", label); }
-        });
-
         document.querySelector("#password").placeholder = copy.passwordPlaceholder;
         document.querySelectorAll("[data-lang]").forEach(btn => {
           btn.classList.toggle("is-active", btn.dataset.lang === lang);
@@ -772,17 +779,17 @@
       /* ════════════════════════════════
          VIDEO MODAL
       ════════════════════════════════ */
-      const videoModal   = document.querySelector("#videoModal");
-      const videoPlayer  = document.querySelector("#videoPlayer");
+      const videoModal  = document.querySelector("#videoModal");
+      const videoPlayer = document.querySelector("#videoPlayer");
 
-      function openVideo()  {
+      function openVideo() {
         videoModal.classList.add("is-open");
-        videoModal.setAttribute("aria-hidden","false");
+        videoModal.setAttribute("aria-hidden", "false");
         videoPlayer.play().catch(() => {});
       }
       function closeVideo() {
         videoModal.classList.remove("is-open");
-        videoModal.setAttribute("aria-hidden","true");
+        videoModal.setAttribute("aria-hidden", "true");
         videoPlayer.pause();
         videoPlayer.currentTime = 0;
       }
@@ -793,17 +800,16 @@
       videoModal.addEventListener("click", e => { if (e.target === videoModal) closeVideo(); });
 
       /* ════════════════════════════════
-         LOGIN FORM + API CALL
+         LOGIN FORM
       ════════════════════════════════ */
-      const form          = document.querySelector("#loginForm");
-      const submitBtn     = document.querySelector("#submitBtn");
-      const errorBox      = document.querySelector("#errorMessage");
-      const errorText     = document.querySelector("#errorText");
-      const successBox    = document.querySelector("#successMessage");
+      const form       = document.querySelector("#loginForm");
+      const submitBtn  = document.querySelector("#submitBtn");
+      const errorBox   = document.querySelector("#errorMessage");
+      const errorText  = document.querySelector("#errorText");
+      const successBox = document.querySelector("#successMessage");
 
       function showError(key) {
-        const msg = translations[currentLang][key] || key;
-        errorText.textContent = msg;
+        errorText.textContent = translations[currentLang][key] || key;
         errorBox.classList.add("is-visible");
         successBox.classList.remove("is-visible");
       }
@@ -816,7 +822,6 @@
         submitBtn.disabled = on;
       }
 
-      // ── API call — compatible with Google Apps Script ──
       function callAPI(payload) {
         return fetch(API_URL, {
           method: "POST",
@@ -830,8 +835,6 @@
           });
       }
 
-
-      
       form.addEventListener("submit", async e => {
         e.preventDefault();
         hideAlerts();
@@ -847,16 +850,14 @@
           const json = await callAPI({ action: "login", login_id, password });
 
           if (json.success) {
-            // ── routing by domain ──
             const email = (json.data.login_id || "").toLowerCase();
-            const dest  = email.endsWith("@rasid.com.eg") ? "app.html" : "clientadmin.html";
+            /* ── وجّه لـ app.html أو clientadmin.html ── */
+            const dest = email.endsWith("@rasid.com.eg") ? "/app.html" : "/clientadmin.html";
 
             localStorage.setItem("rased_user", JSON.stringify(json.data));
-            if (form.querySelector("[name='remember']").checked) {
-              localStorage.setItem("rased_user", JSON.stringify(json.data));
-            }
             successBox.classList.add("is-visible");
-            setTimeout(() => { window.location.href = dest; }, 1200);
+
+            setTimeout(() => { window.location.replace(dest); }, 1200);
           } else {
             showError("errorInvalid");
             setLoading(false);
@@ -867,22 +868,6 @@
           setLoading(false);
         }
       });
-
-      /* ════════════════════════════════
-         AUTO-LOGIN  –  لو في session محفوظة
-      ════════════════════════════════ */
-      (function checkSavedSession() {
-        const saved = localStorage.getItem("rased_user");
-        if (saved) {
-          try {
-            JSON.parse(saved);          // تحقق إن البيانات سليمة
-            window.location.href = "/";
-          } catch {
-            
-            localStorage.removeItem("rased_user");
-          }
-        }
-      })();
     </script>
   </body>
 </html>
