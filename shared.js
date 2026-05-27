@@ -1,6 +1,6 @@
 /* ─── RASED shared utilities ─── */
 
-const API_URL  = "https://script.google.com/macros/s/AKfycbzj-xMOMgwDKIyRK1-CSuD5mQx8M8wd1laM29xWRMIUJF-P6aSUREioB5Osux0aBTE/exec";
+const API_URL   = "https://script.google.com/macros/s/AKfycbzj-xMOMgwDKIyRK1-CSuD5mQx8M8wd1laM29xWRMIUJF-P6aSUREioB5Osux0aBTE/exec";
 const IMGBB_KEY = "d4d42e5ea72b7ead74254a4b7356963e";
 
 /* ════════════════════════════════════════
@@ -33,13 +33,7 @@ const cache = {
   }
 };
 
-/* ── AUTH ───────────────────────────────────────────────────
-   FIX: logout / requireAuth كانوا بيروحوا لـ login.html
-   والملف الفعلي اسمه index.html — اتصلح.
-   FIX: requireAuth بترجع null لو مفيش مستخدم، وكل صفحة
-   لازم تعمل guard على الـ return value (if (!user) return).
-─────────────────────────────────────────────────────────── */
-const LOGIN_PAGE = "index.html";
+/* ── AUTH ─────────────────────────────── */
 
 function getUser() {
   try {
@@ -58,21 +52,19 @@ function requireAuth() {
 }
 
 function logout() {
-  // امسح الـ chat polling لو شغال
   if (window._activePollInterval) {
     clearInterval(window._activePollInterval);
     window._activePollInterval = null;
   }
   localStorage.removeItem("rased_user");
   cache.clear();
-  window.location.href = LOGIN_PAGE;
+  window.location.replace("/");
 }
 
 /* ════════════════════════════════════════
    API WITH CACHE (stale-while-revalidate)
    ════════════════════════════════════════ */
 
-// Raw fetch (no cache)
 async function _apiFetch(body) {
   const res  = await fetch(API_URL, { method: "POST", body: JSON.stringify(body) });
   const text = await res.text();
@@ -80,7 +72,6 @@ async function _apiFetch(body) {
   catch { return { success: false, error: text }; }
 }
 
-// api() — tries cache first, fetches in background
 async function api(body, opts = {}) {
   const { noCache = false, onUpdate } = opts;
   const cacheKey = JSON.stringify(body);
@@ -88,19 +79,16 @@ async function api(body, opts = {}) {
   if (!noCache) {
     const cached = cache.get(cacheKey);
     if (cached) {
-      // Schedule background revalidation
       setTimeout(() => {
         _apiFetch(body).then(fresh => {
           cache.set(cacheKey, fresh);
           if (onUpdate) onUpdate(fresh);
         }).catch(() => {});
       }, cache.isFresh(cacheKey) ? 100 : 0);
-      // Return stale data immediately
       return cached.data;
     }
   }
 
-  // No cache: fetch and store
   const result = await _apiFetch(body);
   if (result && result.success !== false) {
     cache.set(cacheKey, result);
@@ -108,7 +96,6 @@ async function api(body, opts = {}) {
   return result;
 }
 
-// Invalidate cache for a specific action (after write operations)
 function invalidateCache(action) {
   Object.keys(localStorage)
     .filter(k => k.startsWith("rc_") && k.includes('"action":"' + action + '"'))
@@ -145,7 +132,7 @@ function toast(msg, type = "default") {
     container.id = "toast-container";
     document.body.appendChild(container);
   }
-  const t    = document.createElement("div");
+  const t     = document.createElement("div");
   t.className = `toast ${type}`;
   const icon  = type === "success" ? "✓" : type === "error" ? "✕" : "ℹ";
   t.innerHTML = `<span>${icon}</span> ${esc(msg)}`;
@@ -159,10 +146,10 @@ function toast(msg, type = "default") {
 
 /* ── SIDEBAR ACTIVE ─── */
 function setActiveLink() {
-  const page = location.pathname.split("/").pop() || "dashboard.html";
+  const state = history.state && history.state.href;
+  const page  = state || location.pathname.split("/").pop() || "dashboard.html";
   document.querySelectorAll(".sidebar-nav a").forEach(a => {
-    const href = a.getAttribute("href");
-    a.classList.toggle("active", href === page);
+    a.classList.toggle("active", a.getAttribute("href") === page);
   });
 }
 
@@ -205,7 +192,7 @@ function resetForm(selector) {
    SPA ROUTER — smooth page transitions
    ════════════════════════════════════════ */
 
-const pageCache   = {};
+const pageCache    = {};
 let _transitioning = false;
 
 async function _fetchPage(url) {
@@ -216,59 +203,49 @@ async function _fetchPage(url) {
   return html;
 }
 
-function _extractBody(html) {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return doc.body.innerHTML;
+/* parse مرة واحدة بدل 3 */
+function _parsePage(html) {
+  return new DOMParser().parseFromString(html, "text/html");
 }
 
-function _extractScripts(html) {
-  const doc     = new DOMParser().parseFromString(html, "text/html");
+function _extractBody(doc)         { return doc.body.innerHTML; }
+function _extractTitle(doc)        { return doc.title || "RASED"; }
+function _extractExtraStyles(doc)  {
+  let s = "";
+  doc.querySelectorAll("style").forEach(el => { s += el.textContent; });
+  return s;
+}
+function _extractScripts(doc) {
   const scripts = [];
   doc.querySelectorAll("script").forEach(s => scripts.push({ src: s.src, text: s.textContent }));
   return scripts;
 }
 
-function _extractExtraStyles(html) {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  let styles = "";
-  doc.querySelectorAll("style").forEach(s => { styles += s.textContent; });
-  return styles;
-}
-
-function _extractTitle(html) {
-  const m = html.match(/<title>(.*?)<\/title>/i);
-  return m ? m[1] : "RASED";
-}
-
-/* ── SPA navigate ───────────────────────────────────────────
-   FIX: قبل أي page swap نمسح الـ chat polling interval
-   المسجّل في window._activePollInterval.
-─────────────────────────────────────────────────────────── */
 async function navigate(href, pushState = true) {
   if (_transitioning) return;
 
-  // امسح الـ chat polling قبل ما تغير الصفحة
   if (window._activePollInterval) {
     clearInterval(window._activePollInterval);
     window._activePollInterval = null;
   }
 
-  // صفحة اللوجين → real navigation
-  if (href === LOGIN_PAGE || href === "login.html") {
-    window.location.href = href;
+  /* صفحة اللوجين → full reload */
+  if (href === "index.html" || href === "/") {
+    window.location.replace("/");
     return;
   }
 
-  // نفس الصفحة الحالية → تجاهل
-  const currentPage = location.pathname.split("/").pop() || "dashboard.html";
+  /* نفس الصفحة الحالية → تجاهل */
+  const currentPage = (history.state && history.state.href) || "dashboard.html";
   if (href === currentPage) return;
 
   _transitioning = true;
   _showPageLoader();
 
-  let html;
+  let doc;
   try {
-    html = await _fetchPage(href);
+    const html = await _fetchPage(href);
+    doc = _parsePage(html);
   } catch {
     _hidePageLoader();
     _transitioning = false;
@@ -276,7 +253,7 @@ async function navigate(href, pushState = true) {
     return;
   }
 
-  // Fade out
+  /* Fade out */
   const main = document.querySelector(".main");
   if (main) {
     main.style.transition = "opacity 0.18s ease";
@@ -285,23 +262,21 @@ async function navigate(href, pushState = true) {
 
   await _sleep(180);
 
-  // Swap content
-  document.title = _extractTitle(html);
+  /* Swap content — URL يفضل "/" دايماً */
+  document.title = _extractTitle(doc);
   if (pushState) history.replaceState({ href }, "", "/");
 
-  // Inject extra <style> tags
   let styleEl = document.getElementById("spa-page-styles");
   if (!styleEl) {
     styleEl    = document.createElement("style");
     styleEl.id = "spa-page-styles";
     document.head.appendChild(styleEl);
   }
-  styleEl.textContent = _extractExtraStyles(html);
+  styleEl.textContent = _extractExtraStyles(doc);
 
-  // Swap body
-  document.body.innerHTML = _extractBody(html);
+  document.body.innerHTML = _extractBody(doc);
 
-  // Fade in
+  /* Fade in */
   const newMain = document.querySelector(".main");
   if (newMain) {
     newMain.style.opacity    = "0";
@@ -309,8 +284,8 @@ async function navigate(href, pushState = true) {
     requestAnimationFrame(() => requestAnimationFrame(() => { newMain.style.opacity = "1"; }));
   }
 
-  // Re-run page scripts (skip shared.js — already loaded)
-  const scripts = _extractScripts(html);
+  /* Re-run page scripts */
+  const scripts = _extractScripts(doc);
   for (const s of scripts) {
     if (!s.src || s.src.endsWith("shared.js")) {
       if (!s.src) {
@@ -331,7 +306,7 @@ async function navigate(href, pushState = true) {
 
 function _loadScript(src) {
   return new Promise(resolve => {
-    const s = document.createElement("script");
+    const s   = document.createElement("script");
     s.src     = src;
     s.onload  = resolve;
     s.onerror = resolve;
@@ -370,7 +345,7 @@ function _hidePageLoader() {
   }
 }
 
-// Intercept all internal link clicks
+/* Intercept all internal link clicks */
 function _interceptLinks() {
   document.addEventListener("click", e => {
     const link = e.target.closest("a[href]");
@@ -383,7 +358,7 @@ function _interceptLinks() {
   });
 }
 
-// Prefetch sidebar pages on idle
+/* Prefetch sidebar pages on idle */
 function _prefetchLinks() {
   const links = document.querySelectorAll(".sidebar-nav a[href]");
   const urls  = Array.from(links).map(a => a.getAttribute("href")).filter(Boolean);
@@ -395,13 +370,13 @@ function _prefetchLinks() {
   "requestIdleCallback" in window ? requestIdleCallback(run) : setTimeout(run, 2000);
 }
 
-// Browser back/forward
+/* Browser back/forward */
 window.addEventListener("popstate", e => {
   const href = (e.state && e.state.href) || "dashboard.html";
   navigate(href, false);
 });
 
-// Init SPA on first load
+/* Init SPA on first load */
 (function initSPA() {
   const loaderStyle = document.createElement("style");
   loaderStyle.textContent = `
@@ -420,7 +395,6 @@ window.addEventListener("popstate", e => {
   _interceptLinks();
   _prefetchLinks();
   const currentPage = (history.state && history.state.href) || "dashboard.html";
-if (href === currentPage) return;
   if (!history.state) history.replaceState({ href: currentPage }, "", "/");
 })();
 
