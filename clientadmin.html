@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RASED — Client Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #f4f7f5;
+    --bg2:      #eaeff0;
+    --white:    #ffffff;
+    --border:   #dde4e8;
+    --text:     #0f1f2e;
+    --text2:    #4a6070;
+    --text3:    #8fa4b2;
+    --accent:   #176f94;
+    --accent2:  #0f5675;
+    --success:  #15803d;
+    --warn:     #b45309;
+    --danger:   #b42318;
+    --font:     "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
+    --mono:     "Courier New", monospace;
+    --radius:   12px;
+    --shadow:   0 4px 24px rgba(14,40,62,.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    height: 62px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    gap: 16px;
+    flex-shrink: 0;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+  .topbar-brand img { width: 32px; height: 32px; object-fit: contain; }
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .topbar-user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .topbar-user-role {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 1px;
+  }
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .avatar img { width: 36px; height: 36px; object-fit: cover; }
+  .btn-logout-top {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--danger);
+    font: 600 13px var(--font);
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .btn-logout-top:hover { background: #fff5f5; border-color: #fecaca; }
+  .btn-logout-top svg { width: 14px; height: 14px; }
+
+  /* ── NAV TABS ── */
+  .nav-tabs {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 28px;
+    overflow-x: auto;
+  }
+  .nav-tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 14px 18px;
+    font-size: 13px; font-weight: 600;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    transition: color .12s, border-color .12s;
+    user-select: none;
+  }
+  .nav-tab:hover { color: var(--text2); }
+  .nav-tab.active { color: var(--accent); border-color: var(--accent); }
+  .nav-tab svg { width: 15px; height: 15px; }
+
+  /* ── MAIN CONTENT ── */
+  .main-content {
+    flex: 1;
+    padding: 28px;
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  /* ── CARDS ── */
+  .page-title    { font-size: 20px; font-weight: 700; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text3); margin-top: 3px; }
+  .page-header   { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: var(--shadow);
+  }
+  .stat-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .stat-icon svg { width: 20px; height: 20px; }
+  .stat-icon.blue   { background: #eff6ff; color: #2563eb; }
+  .stat-icon.green  { background: #f0fdf4; color: var(--success); }
+  .stat-icon.amber  { background: #fffbeb; color: var(--warn); }
+  .stat-value { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .stat-label { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-title { font-size: 14px; font-weight: 700; color: var(--text); }
+  .card-body  { padding: 20px; }
+
+  .table-wrapper { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .6px; color: var(--text3); text-transform: uppercase; background: var(--bg); border-bottom: 1px solid var(--border); }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+  .td-muted { color: var(--text2); font-size: 12px; }
+
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 700; letter-spacing: .3px; white-space: nowrap;
+  }
+  .badge-green  { background: #dcfce7; color: #15803d; }
+  .badge-red    { background: #fee2e2; color: #b91c1c; }
+  .badge-amber  { background: #fef9c3; color: #a16207; }
+  .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+  .badge-gray   { background: var(--bg2); color: var(--text3); }
+  .badge-purple { background: #f3e8ff; color: #6d28d9; }
+
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 48px 20px; gap: 10px; color: var(--text3);
+  }
+  .empty-state svg { width: 36px; height: 36px; opacity: .4; }
+  .empty-state p { font-size: 14px; }
+
+  .loader-wrap {
+    display: flex; align-items: center; gap: 10px;
+    justify-content: center; padding: 32px; color: var(--text3); font-size: 13px;
+  }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── INFO CARD ── */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .info-field label {
+    display: block;
+    font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+    color: var(--text3); margin-bottom: 5px;
+  }
+  .info-field span {
+    font-size: 14px; font-weight: 500; color: var(--text);
+  }
+
+  /* ── CHAT ── */
+  .chat-wrap { display: flex; height: calc(100vh - 140px); gap: 16px; }
+  .chat-sidebar {
+    width: 260px; flex-shrink: 0;
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: var(--radius); display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .chat-sidebar-head {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 700; letter-spacing: .8px; color: var(--text3); text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .chat-sidebar-body { flex: 1; overflow-y: auto; padding: 8px; }
+  .chat-user-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px; cursor: pointer; transition: background .12s;
+  }
+  .chat-user-item:hover { background: var(--bg); }
+  .chat-user-item.active { background: #eff6ff; }
+  .chat-user-item * { pointer-events: none; }
+  .chat-user-name { font-size: 13px; font-weight: 500; }
+  .chat-user-role { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .chat-pane {
+    flex: 1; min-width: 0; display: flex; flex-direction: column;
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+  }
+  .chat-header {
+    background: var(--white); border-bottom: 1px solid var(--border);
+    padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+  }
+  .chat-header-name { font-size: 15px; font-weight: 600; }
+  .chat-header-sub  { font-size: 12px; color: var(--text2); }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 20px;
+    display: flex; flex-direction: column; gap: 10px; background: var(--bg);
+  }
+  .msg-wrap { display: flex; flex-direction: column; max-width: 68%; }
+  .msg-wrap.me    { align-self: flex-end; align-items: flex-end; }
+  .msg-wrap.other { align-self: flex-start; align-items: flex-start; }
+  .bubble { padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; word-break: break-word; }
+  .me    .bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+  .other .bubble { background: var(--white); color: var(--text); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .msg-time { font-size: 11px; color: var(--text3); margin-top: 3px; padding: 0 4px; }
+  .chat-input-area {
+    background: var(--white); border-top: 1px solid var(--border);
+    padding: 14px 20px; display: flex; gap: 10px; align-items: flex-end;
+  }
+  .chat-input-area textarea {
+    flex: 1; resize: none; max-height: 120px; border-radius: 10px;
+    padding: 10px 14px; font-size: 14px; line-height: 1.5;
+    border: 1.5px solid var(--border); font-family: var(--font);
+    outline: none; transition: border-color .12s;
+  }
+  .chat-input-area textarea:focus { border-color: var(--accent); }
+  .send-btn {
+    width: 42px; height: 42px; border-radius: 10px; background: var(--accent); border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: white; flex-shrink: 0; transition: background .15s;
+  }
+  .send-btn:hover { background: var(--accent2); }
+  .send-btn svg { width: 18px; height: 18px; }
+  .chat-empty {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; color: var(--text3); gap: 12px;
+    background: var(--bg);
+  }
+  .chat-empty svg { width: 48px; height: 48px; }
+  .chat-empty p { font-size: 14px; }
+
+  /* ── TOAST ── */
+  #toast-container {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9000;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .toast {
+    padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 500;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--text); color: white;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18); min-width: 220px;
+    animation: slideUp .2s ease;
+  }
+  .toast.success { background: var(--success); }
+  .toast.error   { background: var(--danger); }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 680px) {
+    .main-content { padding: 16px; }
+    .topbar       { padding: 0 16px; }
+    .nav-tabs      { padding: 0 16px; }
+    .chat-wrap     { flex-direction: column; height: auto; }
+    .chat-sidebar  { width: 100%; height: 180px; }
+    .chat-pane     { height: 400px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <img src="rasedlogo.png" alt="RASED">
+    RASED
+  </div>
+  <div class="topbar-right">
+    <div>
+      <div class="topbar-user-name" id="tb-name">—</div>
+      <div class="topbar-user-role" id="tb-role">Client Portal</div>
+    </div>
+    <div class="avatar" id="tb-avatar">?</div>
+    <button class="btn-logout-top" onclick="doLogout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Logout
+    </button>
+  </div>
+</div>
+
+<!-- ── NAV TABS ── -->
+<div class="nav-tabs">
+  <div class="nav-tab active" id="tab-overview" onclick="switchTab('overview')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Overview
+  </div>
+  <div class="nav-tab" id="tab-contracts" onclick="switchTab('contracts')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Contracts
+  </div>
+  <div class="nav-tab" id="tab-chat" onclick="switchTab('chat')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Chat
+  </div>
+</div>
+
+<!-- ── CONTENT ── -->
+<div class="main-content" id="main-content">
+  <div class="loader-wrap"><div class="spinner"></div> Loading…</div>
+</div>
+
+<script>
+/* ════════════════════════════════
+   CONFIG
+════════════════════════════════ */
+const API_URL   = "https://script.google.com/macros/s/AKfycbzj-xMOMgwDKIyRK1-CSuD5mQx8M8wd1laM29xWRMIUJF-P6aSUREioB5Osux0aBTE/exec";
+const LOGIN_PAGE = "/index.html";
+
+/* ════════════════════════════════
+   AUTH
+════════════════════════════════ */
+function getUser() {
+  try { const u = localStorage.getItem("rased_user"); return u ? JSON.parse(u) : null; }
+  catch { return null; }
+}
+
+const currentUser = getUser();
+if (!currentUser) {
+  window.location.replace(LOGIN_PAGE);
+  throw new Error("not authenticated");
+}
+
+// Populate topbar
+document.getElementById("tb-name").textContent = currentUser.name || "User";
+document.getElementById("tb-role").textContent = currentUser.role || "Client Portal";
+(function() {
+  const av = document.getElementById("tb-avatar");
+  if (currentUser.image) {
+    av.innerHTML = `<img src="${currentUser.image}">`;
+  } else {
+    av.textContent = (currentUser.name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  }
+})();
+
+function doLogout() {
+  if (window._activePollInterval) { clearInterval(window._activePollInterval); }
+  localStorage.removeItem("rased_user");
+  // Clear api cache
+  Object.keys(localStorage).filter(k => k.startsWith("rc_")).forEach(k => localStorage.removeItem(k));
+  window.location.href = LOGIN_PAGE;
+}
+
+/* ════════════════════════════════
+   CACHE & API
+════════════════════════════════ */
+const CACHE_TTL = 5 * 60 * 1000;
+const _cache = {
+  set(key, data) { try { localStorage.setItem("rc_" + key, JSON.stringify({ ts: Date.now(), data })); } catch {} },
+  get(key) { try { const r = localStorage.getItem("rc_" + key); return r ? JSON.parse(r) : null; } catch { return null; } },
+  isFresh(key) { const e = this.get(key); return e && (Date.now() - e.ts < CACHE_TTL); },
+  clear(key) {
+    if (key) { localStorage.removeItem("rc_" + key); }
+    else { Object.keys(localStorage).filter(k => k.startsWith("rc_")).forEach(k => localStorage.removeItem(k)); }
+  }
+};
+
+function _cacheKey(body) {
+  const { action, ...params } = body;
+  return action + (Object.keys(params).length
+    ? ":" + Object.keys(params).sort().map(k => k + "=" + params[k]).join("|")
+    : "");
+}
+
+async function _apiFetch(body) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(body)
+  });
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch { return { success: false, error: text }; }
+}
+
+async function api(body, opts = {}) {
+  const { noCache = false, onUpdate } = opts;
+  const key = _cacheKey(body);
+  if (!noCache) {
+    const cached = _cache.get(key);
+    if (cached) {
+      setTimeout(() => {
+        _apiFetch(body).then(fresh => { _cache.set(key, fresh); if (onUpdate) onUpdate(fresh); }).catch(() => {});
+      }, _cache.isFresh(key) ? 100 : 0);
+      return cached.data;
+    }
+  }
+  const result = await _apiFetch(body);
+  if (result && result.success !== false) _cache.set(key, result);
+  return result;
+}
+
+function invalidateCache(action) {
+  Object.keys(localStorage).filter(k => k.startsWith("rc_" + action)).forEach(k => localStorage.removeItem(k));
+}
+
+/* ════════════════════════════════
+   TOAST
+════════════════════════════════ */
+function toast(msg, type = "default") {
+  let c = document.getElementById("toast-container");
+  if (!c) { c = document.createElement("div"); c.id = "toast-container"; document.body.appendChild(c); }
+  const t = document.createElement("div");
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${type === "success" ? "✓" : type === "error" ? "✕" : "ℹ"}</span> ${String(msg).replace(/&/g,"&amp;").replace(/</g,"&lt;")}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = "0"; t.style.transition = "opacity .3s"; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+function esc(str) {
+  return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+function statusBadge(s) {
+  const map = { active:"green", inactive:"red", pending:"amber", expired:"red" };
+  return `<span class="badge badge-${map[(s||"").toLowerCase()]||"gray"}">${esc(s||"—")}</span>`;
+}
+
+/* ════════════════════════════════
+   TAB ROUTER
+════════════════════════════════ */
+let _activeTab = "overview";
+
+function switchTab(tab) {
+  if (tab === _activeTab) return;
+  if (window._activePollInterval) { clearInterval(window._activePollInterval); window._activePollInterval = null; }
+  _activeTab = tab;
+  document.querySelectorAll(".nav-tab").forEach(el => el.classList.toggle("active", el.id === "tab-" + tab));
+  renderTab(tab);
+}
+
+function renderTab(tab) {
+  const mc = document.getElementById("main-content");
+  mc.style.opacity = "0";
+  mc.style.transition = "opacity .15s";
+  setTimeout(() => {
+    if      (tab === "overview")   renderOverview(mc);
+    else if (tab === "contracts")  renderContracts(mc);
+    else if (tab === "chat")       renderChat(mc);
+    mc.style.opacity = "1";
+  }, 150);
+}
+
+/* ════════════════════════════════
+   TAB: OVERVIEW
+════════════════════════════════ */
+async function renderOverview(mc) {
+  mc.innerHTML = `
+  <div class="page-header">
+    <div>
+      <div class="page-title">Welcome, ${esc(currentUser.name || "User")}</div>
+      <div class="page-subtitle">Your facility management overview</div>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+      <div><div class="stat-value" id="ov-contractsTotal">—</div><div class="stat-label">Total Contracts</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+      <div><div class="stat-value" id="ov-contractsActive">—</div><div class="stat-label">Active Contracts</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+      <div><div class="stat-value" id="ov-usersCount">—</div><div class="stat-label">Linked Users</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">Your Contracts</div></div>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Contract No</th><th>Service</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+        <tbody id="ov-table"><tr><td colspan="5"><div class="loader-wrap"><div class="spinner"></div> Loading…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  try {
+    const [xr, ur] = await Promise.all([
+      api({ action: "getContracts" }),
+      api({ action: "getUsers"     }),
+    ]);
+    const contracts = (xr.data || []).filter(c => String(c.client_id) === String(currentUser.client_id));
+    const users     = (ur.data || []).filter(u => String(u.client_id) === String(currentUser.client_id));
+    const active    = contracts.filter(c => (c.status || "").toLowerCase() === "active");
+
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set("ov-contractsTotal",  contracts.length);
+    set("ov-contractsActive", active.length);
+    set("ov-usersCount",      users.length);
+
+    const tb = document.getElementById("ov-table");
+    if (!tb) return;
+    tb.innerHTML = contracts.length
+      ? contracts.map(c => `<tr>
+          <td><span style="font-family:var(--mono);font-size:12px;background:var(--bg);padding:3px 8px;border-radius:4px">${esc(c.contract_no||"—")}</span></td>
+          <td><span class="badge badge-blue">${esc(c.service_type||"—")}</span></td>
+          <td class="td-muted">${c.start_date ? c.start_date.split("T")[0] : "—"}</td>
+          <td class="td-muted">${c.end_date   ? c.end_date.split("T")[0]   : "—"}</td>
+          <td>${statusBadge(c.status)}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="5"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><p>No contracts found for your account</p></div></td></tr>`;
+  } catch {
+    const tb = document.getElementById("ov-table");
+    if (tb) tb.innerHTML = `<tr><td colspan="5" style="color:var(--danger);text-align:center;padding:20px">Failed to load data</td></tr>`;
+  }
+}
+
+/* ════════════════════════════════
+   TAB: CONTRACTS
+════════════════════════════════ */
+async function renderContracts(mc) {
+  mc.innerHTML = `
+  <div class="page-header">
+    <div>
+      <div class="page-title">Contracts</div>
+      <div class="page-subtitle">All service contracts for your account</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Contract Details</div>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Contract No</th><th>Service Type</th><th>Start Date</th><th>End Date</th><th>Allowed Devices</th><th>Allowed Users</th><th>Status</th></tr></thead>
+        <tbody id="cx-table"><tr><td colspan="7"><div class="loader-wrap"><div class="spinner"></div> Loading…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  try {
+    const xr = await api({ action: "getContracts" });
+    const contracts = (xr.data || []).filter(c => String(c.client_id) === String(currentUser.client_id));
+    const tb = document.getElementById("cx-table");
+    if (!tb) return;
+    tb.innerHTML = contracts.length
+      ? contracts.map(c => `<tr>
+          <td><span style="font-family:var(--mono);font-size:12px;background:var(--bg);padding:3px 8px;border-radius:4px">${esc(c.contract_no||"—")}</span></td>
+          <td><span class="badge badge-blue">${esc(c.service_type||"—")}</span></td>
+          <td class="td-muted">${c.start_date ? c.start_date.split("T")[0] : "—"}</td>
+          <td class="td-muted">${c.end_date   ? c.end_date.split("T")[0]   : "—"}</td>
+          <td class="td-muted">${c.allowed_devices != null && c.allowed_devices !== "" ? c.allowed_devices : "—"}</td>
+          <td class="td-muted">${c.allowed_users   != null && c.allowed_users   !== "" ? c.allowed_users   : "—"}</td>
+          <td>${statusBadge(c.status)}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="7"><div class="empty-state"><p>No contracts found</p></div></td></tr>`;
+  } catch {
+    const tb = document.getElementById("cx-table");
+    if (tb) tb.innerHTML = `<tr><td colspan="7" style="color:var(--danger);text-align:center;padding:20px">Failed to load contracts</td></tr>`;
+  }
+}
+
+/* ════════════════════════════════
+   TAB: CHAT
+════════════════════════════════ */
+function renderChat(mc) {
+  mc.innerHTML = `
+  <div class="chat-wrap">
+    <div class="chat-sidebar">
+      <div class="chat-sidebar-head">CONVERSATIONS</div>
+      <div class="chat-sidebar-body" id="ch-usersList">
+        <div class="loader-wrap"><div class="spinner"></div></div>
+      </div>
+    </div>
+    <div class="chat-pane">
+      <div id="ch-empty" class="chat-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <p>Select a conversation to start messaging</p>
+      </div>
+      <div class="chat-header" id="ch-header" style="display:none">
+        <div class="avatar" id="ch-av">?</div>
+        <div>
+          <div class="chat-header-name" id="ch-hname"></div>
+          <div class="chat-header-sub"  id="ch-hsub">Direct message</div>
+        </div>
+      </div>
+      <div class="chat-messages" id="ch-msgs" style="display:none"></div>
+      <div class="chat-input-area" id="ch-input" style="display:none">
+        <textarea id="ch-text" placeholder="Type a message…" rows="1"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chSend()}"
+          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+        <button class="send-btn" onclick="chSend()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>`;
+
+  let allUsers = [], receiver = null, lastIds = new Set();
+
+  async function initChat() {
+    try {
+      const data = await api({ action: "getUsers" });
+      // Show all users except self — client can message any RASED staff or other users
+      allUsers = (data.data || []).filter(u => String(u.id) !== String(currentUser.id));
+      renderUsersList(allUsers);
+    } catch {
+      const el = document.getElementById("ch-usersList");
+      if (el) el.innerHTML = `<div style="text-align:center;color:var(--danger);font-size:12px;padding:20px">Failed to load users</div>`;
+    }
+  }
+
+  function renderUsersList(users) {
+    const el = document.getElementById("ch-usersList");
+    if (!el) return;
+    if (!users.length) { el.innerHTML = `<div style="text-align:center;color:var(--text3);font-size:13px;padding:20px">No users found</div>`; return; }
+    el.innerHTML = "";
+    users.forEach(u => {
+      const initials = (u.name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+      const item = document.createElement("div");
+      item.className = "chat-user-item" + (receiver && receiver.id == u.id ? " active" : "");
+      item.innerHTML = `
+        <div class="avatar" style="width:34px;height:34px;font-size:12px;flex-shrink:0">${u.image ? `<img src="${esc(u.image)}">` : initials}</div>
+        <div>
+          <div class="chat-user-name">${esc(u.name || "—")}</div>
+          <div class="chat-user-role">${esc(u.role || "")}</div>
+        </div>`;
+      item.addEventListener("click", () => startConv(u, item));
+      el.appendChild(item);
+    });
+  }
+
+  function startConv(u, item) {
+    receiver  = u;
+    lastIds   = new Set();
+    document.querySelectorAll(".chat-user-item").forEach(i => i.classList.remove("active"));
+    item.classList.add("active");
+    document.getElementById("ch-empty").style.display  = "none";
+    document.getElementById("ch-header").style.display = "flex";
+    document.getElementById("ch-msgs").style.display   = "flex";
+    document.getElementById("ch-input").style.display  = "flex";
+    const av = document.getElementById("ch-av");
+    av.innerHTML = u.image ? `<img src="${esc(u.image)}">` : (u.name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+    document.getElementById("ch-hname").textContent = u.name || "—";
+    document.getElementById("ch-hsub").textContent  = u.role || "Direct message";
+    document.getElementById("ch-text").focus();
+    if (window._activePollInterval) { clearInterval(window._activePollInterval); window._activePollInterval = null; }
+    loadMessages(true);
+    window._activePollInterval = setInterval(() => loadMessages(false), 3000);
+  }
+
+  async function loadMessages(forceScroll) {
+    if (!receiver) return;
+    try {
+      invalidateCache("getChat");
+      const data = await api({ action: "getChat", sender_id: currentUser.id }, { noCache: true });
+      applyMessages(data.data || [], forceScroll);
+    } catch {}
+  }
+
+  function applyMessages(all, forceScroll) {
+    if (!receiver) return;
+    const msgs = all.filter(m =>
+      (m.sender_id == currentUser.id && m.receiver_id == receiver.id) ||
+      (m.sender_id == receiver.id    && m.receiver_id == currentUser.id)
+    );
+    const box = document.getElementById("ch-msgs");
+    if (!box) return;
+    const wasAtBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+    const newMsgs = msgs.filter(m => !lastIds.has(m.id));
+    if (newMsgs.length === 0 && lastIds.size > 0) return;
+    if (lastIds.size === 0) {
+      box.innerHTML = msgs.length
+        ? msgs.map(m => bubble(m)).join("")
+        : `<div style="text-align:center;color:var(--text3);font-size:13px;padding:20px">No messages yet. Say hello!</div>`;
+      msgs.forEach(m => lastIds.add(m.id));
+    } else {
+      const ph = box.querySelector("div[style*='No messages']");
+      if (ph) ph.remove();
+      newMsgs.forEach(m => {
+        const div = document.createElement("div");
+        div.innerHTML = bubble(m);
+        box.appendChild(div.firstElementChild);
+        lastIds.add(m.id);
+      });
+    }
+    if (forceScroll || wasAtBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  function bubble(m) {
+    const isMe = m.sender_id == currentUser.id;
+    return `<div class="msg-wrap ${isMe ? "me" : "other"}"><div class="bubble">${esc(m.message)}</div><div class="msg-time">${m.created_at || ""}</div></div>`;
+  }
+
+  window.chSend = async () => {
+    const input = document.getElementById("ch-text");
+    const msg   = input.value.trim();
+    if (!msg || !receiver) return;
+    input.value = ""; input.style.height = "auto";
+    try {
+      await api({ action: "addChat", sender_id: currentUser.id, receiver_id: receiver.id, message: msg }, { noCache: true });
+      invalidateCache("getChat");
+      loadMessages(true);
+    } catch { toast("Failed to send message.", "error"); }
+  };
+
+  initChat();
+}
+
+/* ════════════════════════════════
+   INIT
+════════════════════════════════ */
+renderTab("overview");
+</script>
+</body>
+</html>
