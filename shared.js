@@ -74,7 +74,11 @@ function logout() {
 
 // Raw fetch (no cache)
 async function _apiFetch(body) {
-  const res  = await fetch(API_URL, { method: "POST", body: JSON.stringify(body) });
+  const res  = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(body)
+  });
   const text = await res.text();
   try { return JSON.parse(text); }
   catch { return { success: false, error: text }; }
@@ -83,7 +87,11 @@ async function _apiFetch(body) {
 // api() — tries cache first, fetches in background
 async function api(body, opts = {}) {
   const { noCache = false, onUpdate } = opts;
-  const cacheKey = JSON.stringify(body);
+  // Use action + stable sorted params as cache key (avoid JSON key-ordering issues)
+  const { action, ...params } = body;
+  const cacheKey = action + (Object.keys(params).length
+    ? ":" + Object.keys(params).sort().map(k => k + "=" + params[k]).join("|")
+    : "");
 
   if (!noCache) {
     const cached = cache.get(cacheKey);
@@ -111,7 +119,7 @@ async function api(body, opts = {}) {
 // Invalidate cache for a specific action (after write operations)
 function invalidateCache(action) {
   Object.keys(localStorage)
-    .filter(k => k.startsWith("rc_") && k.includes('"action":"' + action + '"'))
+    .filter(k => k.startsWith("rc_" + action))
     .forEach(k => localStorage.removeItem(k));
 }
 
@@ -202,144 +210,39 @@ function resetForm(selector) {
 }
 
 /* ════════════════════════════════════════
-   SPA ROUTER — smooth page transitions
+   SPA ROUTER — delegates to app.html's internal router
+   All navigation goes through app.html which handles
+   view switching internally. shared.js just intercepts
+   clicks on .html links and maps them to view names.
    ════════════════════════════════════════ */
 
-const pageCache   = {};
-let _transitioning = false;
+// Map old .html filenames → view names used by app.html router
+const _viewMap = {
+  "dashboard.html": "dashboard",
+  "clients.html":   "clients",
+  "users.html":     "users",
+  "contracts.html": "contracts",
+  "chat.html":      "chat",
+  "reports.html":   "reports",
+  "settings.html":  "settings",
+  "app.html":       "dashboard",
+};
 
-async function _fetchPage(url) {
-  if (pageCache[url]) return pageCache[url];
-  const res  = await fetch(url);
-  const html = await res.text();
-  pageCache[url] = html;
-  return html;
-}
-
-function _extractBody(html) {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return doc.body.innerHTML;
-}
-
-function _extractScripts(html) {
-  const doc     = new DOMParser().parseFromString(html, "text/html");
-  const scripts = [];
-  doc.querySelectorAll("script").forEach(s => scripts.push({ src: s.src, text: s.textContent }));
-  return scripts;
-}
-
-function _extractExtraStyles(html) {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  let styles = "";
-  doc.querySelectorAll("style").forEach(s => { styles += s.textContent; });
-  return styles;
-}
-
-function _extractTitle(html) {
-  const m = html.match(/<title>(.*?)<\/title>/i);
-  return m ? m[1] : "RASED";
-}
-
-/* ── SPA navigate ───────────────────────────────────────────
-   FIX: قبل أي page swap نمسح الـ chat polling interval
-   المسجّل في window._activePollInterval.
-─────────────────────────────────────────────────────────── */
-async function navigate(href, pushState = true) {
-  if (_transitioning) return;
-
-  // امسح الـ chat polling قبل ما تغير الصفحة
-  if (window._activePollInterval) {
-    clearInterval(window._activePollInterval);
-    window._activePollInterval = null;
-  }
-
-  // صفحة اللوجين → real navigation
-  if (href === LOGIN_PAGE || href === "login.html") {
-    window.location.href = href;
+function navigate(href, pushState = true) {
+  // Login page → real navigation
+  if (href === LOGIN_PAGE || href === "index.html") {
+    window.location.href = "/index.html";
     return;
   }
-
-  // نفس الصفحة الحالية → تجاهل
-  const currentPage = location.pathname.split("/").pop() || "dashboard.html";
-  if (href === currentPage) return;
-
-  _transitioning = true;
-  _showPageLoader();
-
-  let html;
-  try {
-    html = await _fetchPage(href);
-  } catch {
-    _hidePageLoader();
-    _transitioning = false;
-    window.location.href = href;
+  // If already on app.html, delegate to the SPA router inside app.html
+  const view = _viewMap[href] || href.replace(".html","").replace("#","");
+  if (typeof navigateTo === "function") {
+    navigateTo(view, pushState);
     return;
   }
-
-  // Fade out
-  const main = document.querySelector(".main");
-  if (main) {
-    main.style.transition = "opacity 0.18s ease";
-    main.style.opacity    = "0";
-  }
-
-  await _sleep(180);
-
-  // Swap content
-  document.title = _extractTitle(html);
-  if (pushState) history.replaceState({ href }, "", "/");
-
-  // Inject extra <style> tags
-  let styleEl = document.getElementById("spa-page-styles");
-  if (!styleEl) {
-    styleEl    = document.createElement("style");
-    styleEl.id = "spa-page-styles";
-    document.head.appendChild(styleEl);
-  }
-  styleEl.textContent = _extractExtraStyles(html);
-
-  // Swap body
-  document.body.innerHTML = _extractBody(html);
-
-  // Fade in
-  const newMain = document.querySelector(".main");
-  if (newMain) {
-    newMain.style.opacity    = "0";
-    newMain.style.transition = "opacity 0.2s ease";
-    requestAnimationFrame(() => requestAnimationFrame(() => { newMain.style.opacity = "1"; }));
-  }
-
-  // Re-run page scripts (skip shared.js — already loaded)
-  const scripts = _extractScripts(html);
-  for (const s of scripts) {
-    if (!s.src || s.src.endsWith("shared.js")) {
-      if (!s.src) {
-        try { new Function(s.text)(); }
-        catch (e) { console.error("SPA script error:", e); }
-      }
-    } else {
-      if (!document.querySelector(`script[src="${s.src}"]`)) {
-        await _loadScript(s.src);
-      }
-    }
-  }
-
-  _hidePageLoader();
-  _transitioning = false;
-  _prefetchLinks();
+  // Fallback: go to app.html with history state
+  window.location.href = "/app.html";
 }
-
-function _loadScript(src) {
-  return new Promise(resolve => {
-    const s = document.createElement("script");
-    s.src     = src;
-    s.onload  = resolve;
-    s.onerror = resolve;
-    document.head.appendChild(s);
-  });
-}
-
-function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 let _loaderEl = null;
 function _showPageLoader() {
@@ -370,7 +273,7 @@ function _hidePageLoader() {
   }
 }
 
-// Intercept all internal link clicks
+// Intercept all internal .html link clicks
 function _interceptLinks() {
   document.addEventListener("click", e => {
     const link = e.target.closest("a[href]");
@@ -383,25 +286,7 @@ function _interceptLinks() {
   });
 }
 
-// Prefetch sidebar pages on idle
-function _prefetchLinks() {
-  const links = document.querySelectorAll(".sidebar-nav a[href]");
-  const urls  = Array.from(links).map(a => a.getAttribute("href")).filter(Boolean);
-  const run   = () => urls.forEach(url => {
-    if (!pageCache[url]) {
-      fetch(url).then(r => r.text()).then(html => { pageCache[url] = html; }).catch(() => {});
-    }
-  });
-  "requestIdleCallback" in window ? requestIdleCallback(run) : setTimeout(run, 2000);
-}
-
-// Browser back/forward
-window.addEventListener("popstate", e => {
-  const href = (e.state && e.state.href) || "dashboard.html";
-  navigate(href, false);
-});
-
-// Init SPA on first load
+// Init on first load
 (function initSPA() {
   const loaderStyle = document.createElement("style");
   loaderStyle.textContent = `
@@ -418,9 +303,7 @@ window.addEventListener("popstate", e => {
     }`;
   document.head.appendChild(loaderStyle);
   _interceptLinks();
-  _prefetchLinks();
-  const currentPage = (history.state && history.state.href) || "dashboard.html";
-if (href === currentPage) return;
+  const currentPage = (history.state && history.state.href) || "app.html";
   if (!history.state) history.replaceState({ href: currentPage }, "", "/");
 })();
 
