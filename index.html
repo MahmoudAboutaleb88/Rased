@@ -849,13 +849,14 @@
           const json = await callAPI({ action: "login", login_id, password });
 
           if (json.success) {
-            /* خزّن بيانات المستخدم — app.html هيقرأ منها ويقرر */
+            /* خزّن بيانات المستخدم */
             localStorage.setItem("rased_user", JSON.stringify(json.data));
             successBox.classList.add("is-visible");
 
-            /* روح لـ "/" دايماً — الـ vercel rewrite يوجّه لـ app.html
-               وapp.html يقرر بناءً على login_id لو admin أو client */
-            setTimeout(() => { window.location.replace("/"); }, 1200);
+            /* توجيه مباشر حسب نوع الحساب */
+            const email = (json.data.login_id || "").toLowerCase();
+            const dest  = email.endsWith("@rasid.com.eg") ? "/app.html" : "/clientadmin.html";
+            setTimeout(() => { window.location.replace(dest); }, 1200);
           } else {
             showError("errorInvalid");
             setLoading(false);
