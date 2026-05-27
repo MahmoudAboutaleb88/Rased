@@ -208,6 +208,13 @@
 const currentUser = requireAuth();
 if (!currentUser) throw new Error("not authenticated");
 
+// لو مش admin وجّهه لصفحة العميل
+const _email = (currentUser.login_id || "").toLowerCase();
+if (!_email.endsWith("@rasid.com.eg")) {
+  window.location.replace("/clientadmin.html");
+  throw new Error("redirecting");
+}
+
 document.getElementById("sidebar-mount").innerHTML = SIDEBAR_HTML;
 renderTopbarUser();
 
