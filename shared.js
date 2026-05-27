@@ -51,7 +51,7 @@ function getUser() {
 function requireAuth() {
   const user = getUser();
   if (!user) {
-    window.location.href = LOGIN_PAGE;
+    window.location.replace("/");
     return null;
   }
   return user;
@@ -419,7 +419,8 @@ window.addEventListener("popstate", e => {
   document.head.appendChild(loaderStyle);
   _interceptLinks();
   _prefetchLinks();
-  const currentPage = location.pathname.split("/").pop() || "dashboard.html";
+  const currentPage = (history.state && history.state.href) || "dashboard.html";
+if (href === currentPage) return;
   if (!history.state) history.replaceState({ href: currentPage }, "", "/");
 })();
 
